@@ -918,22 +918,16 @@ ASTNode *parse_primary(ParserContext *ctx, Lexer *l)
         node->literal.type_kind = 0;
         node->type_info = type_new(TYPE_INT);
         char *s = token_strdup(t);
-        long long val;
+        unsigned long long val;
         if (t.len > 2 && s[0] == '0' && s[1] == 'b')
         {
-            val = strtoll(s + 2, NULL, 2);
+            val = strtoull(s + 2, NULL, 2);
         }
         else
         {
-            val = strtoll(s, NULL, 0);
+            val = strtoull(s, NULL, 0);
         }
-
-        if (val > 2147483647LL || val < -2147483648LL)
-        {
-            warn_integer_overflow(t, "int", val);
-        }
-
-        node->literal.int_val = (int)val;
+        node->literal.int_val = (unsigned long long)val;
         free(s);
     }
     else if (t.type == TOK_FLOAT)

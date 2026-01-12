@@ -311,7 +311,7 @@ struct ASTNode
         struct
         {
             int type_kind;
-            int int_val;
+            unsigned long long int_val;
             double float_val;
             char *string_val;
         } literal;

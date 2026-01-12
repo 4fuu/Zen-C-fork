@@ -3,8 +3,9 @@ import "./core.zc"
 import "./option.zc"
 
 raw {
+    extern size_t __zen_hash_seed;
     size_t _set_hash(const void* data, size_t len) {
-        size_t hash = 14695981039346656037UL;
+        size_t hash = __zen_hash_seed;
         const unsigned char* bytes = (const unsigned char*)data;
         for (size_t i = 0; i < len; i++) {
             hash ^= bytes[i];

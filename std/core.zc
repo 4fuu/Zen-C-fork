@@ -4,3 +4,5 @@ include <string.h>
 include <stdio.h>
 include <stdbool.h>
 include <stdarg.h>
+
+var __zen_hash_seed: usize = 14695981039346656037;
