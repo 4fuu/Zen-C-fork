@@ -79,8 +79,24 @@ else()
 endif()
 
 # Installation
-install(TARGETS zc RUNTIME DESTINATION bin)
-install(FILES man/zc.1 DESTINATION share/man/man1 OPTIONAL)
+include(GNUInstallDirs)
+
+install(TARGETS zc RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Standard library location (Windows: alongside exe, Unix: share/zc)
+if(WIN32)
+    set(ZC_DATA_DIR ${CMAKE_INSTALL_BINDIR})
+else()
+    set(ZC_DATA_DIR ${CMAKE_INSTALL_DATADIR}/zc)
+endif()
+
+install(DIRECTORY std/ DESTINATION ${ZC_DATA_DIR}/std)
+install(FILES std.zc DESTINATION ${ZC_DATA_DIR})
+
+# Man page (Unix only)
+if(NOT WIN32)
+    install(FILES man/zc.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 OPTIONAL)
+endif()
 
 # Output build info
 message(STATUS "Building Zen-C compiler")

@@ -42,6 +42,7 @@ OBJS = $(patsubst %.c, $(OBJ_DIR)/%.o, $(SRCS))
 # Installation paths
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
+DATADIR = $(PREFIX)/share/zc
 MANDIR = $(PREFIX)/share/man/man1
 
 # Default target
@@ -62,16 +63,20 @@ $(OBJ_DIR)/%.o: %.c
 install: $(TARGET)
 	install -d $(BINDIR)
 	install -m 755 $(TARGET) $(BINDIR)/$(TARGET)
+	install -d $(DATADIR)/std
+	install -m 644 std.zc $(DATADIR)/
+	install -m 644 std/*.zc std/*.h $(DATADIR)/std/
 	install -d $(MANDIR)
-	# Install man page if it exists
 	test -f man/zc.1 && install -m 644 man/zc.1 $(MANDIR)/zc.1 || true
 	@echo "=> Installed to $(BINDIR)/$(TARGET)"
+	@echo "=> Standard library installed to $(DATADIR)/"
 
 # Uninstall
 uninstall:
 	rm -f $(BINDIR)/$(TARGET)
+	rm -rf $(DATADIR)
 	rm -f $(MANDIR)/zc.1
-	@echo "=> Uninstalled from $(BINDIR)/$(TARGET)"
+	@echo "=> Uninstalled $(TARGET)"
 
 # Clean
 clean:
