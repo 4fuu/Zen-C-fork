@@ -86,9 +86,16 @@ install(TARGETS zc RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 # Standard library location (Windows: alongside exe, Unix: share/zc)
 if(WIN32)
     set(ZC_DATA_DIR ${CMAKE_INSTALL_BINDIR})
+    set(ZC_STD_INSTALL_PATH "")  # Empty = search relative to exe
 else()
     set(ZC_DATA_DIR ${CMAKE_INSTALL_DATADIR}/zc)
+    set(ZC_STD_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/${ZC_DATA_DIR}")
 endif()
+
+# Pass install path to compiler
+target_compile_definitions(zc PRIVATE
+    ZC_STD_INSTALL_PATH="${ZC_STD_INSTALL_PATH}"
+)
 
 install(DIRECTORY std/ DESTINATION ${ZC_DATA_DIR}/std)
 install(FILES std.zc DESTINATION ${ZC_DATA_DIR})

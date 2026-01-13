@@ -3618,57 +3618,24 @@ ASTNode *parse_import(ParserContext *ctx, Lexer *l)
     strncpy(fn, t.start + 1, ln);
     fn[ln] = 0;
 
-    // Resolve relative paths (if starts with ./ or ../
-    char resolved_path[1024];
-    if (fn[0] == '.' && (fn[1] == '/' || (fn[1] == '.' && fn[2] == '/')))
+    // Resolve import path using unified search logic
+    char *current_dir = NULL;
+    char *last_slash = strrchr(g_current_filename, '/');
+    if (last_slash)
     {
-        // Relative import - resolve relative to current file
-        char *current_dir = xstrdup(g_current_filename);
-        char *last_slash = strrchr(current_dir, '/');
-        if (last_slash)
-        {
-            *last_slash = 0; // Truncate to directory
-            const char *leaf = fn;
-            if (leaf[0] == '.' && leaf[1] == '/')
-            {
-                leaf += 2;
-            }
-            snprintf(resolved_path, sizeof(resolved_path), "%s/%s", current_dir, leaf);
-        }
-        else
-        {
-            snprintf(resolved_path, sizeof(resolved_path), "%s", fn);
-        }
-        free(current_dir);
+        size_t dir_len = last_slash - g_current_filename;
+        current_dir = xmalloc(dir_len + 1);
+        strncpy(current_dir, g_current_filename, dir_len);
+        current_dir[dir_len] = 0;
+    }
+
+    char *resolved = zc_resolve_import_path(fn, current_dir);
+    if (resolved)
+    {
         free(fn);
-        fn = xstrdup(resolved_path);
+        fn = resolved;
     }
-
-    // Check if file exists, if not try system-wide paths
-    if (access(fn, R_OK) != 0)
-    {
-        // Try system-wide standard library location
-        static const char *system_paths[] = {"/usr/local/share/zenc", "/usr/share/zenc", NULL};
-
-        char system_path[1024];
-        int found = 0;
-
-        for (int i = 0; system_paths[i] && !found; i++)
-        {
-            snprintf(system_path, sizeof(system_path), "%s/%s", system_paths[i], fn);
-            if (access(system_path, R_OK) == 0)
-            {
-                free(fn);
-                fn = xstrdup(system_path);
-                found = 1;
-            }
-        }
-
-        if (!found)
-        {
-            // File not found anywhere - will error later when trying to open
-        }
-    }
+    // If not resolved, keep original fn - will error later when trying to open
 
     // Check if file already imported
     if (is_file_imported(ctx, fn))

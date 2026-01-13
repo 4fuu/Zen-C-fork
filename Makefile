@@ -1,9 +1,15 @@
+# Installation paths (must be before CFLAGS)
+PREFIX = /usr/local
+BINDIR = $(PREFIX)/bin
+DATADIR = $(PREFIX)/share/zc
+MANDIR = $(PREFIX)/share/man/man1
+
 # Compiler configuration
 # Default: gcc
 # To build with clang: make CC=clang
 # To build with zig:   make CC="zig cc"
 CC = gcc
-CFLAGS = -Wall -Wextra -g -I./src -I./src/ast -I./src/parser -I./src/codegen -I./plugins -I./src/zen -I./src/utils -I./src/lexer -I./src/analysis -I./src/lsp -I./src/compat
+CFLAGS = -Wall -Wextra -g -I./src -I./src/ast -I./src/parser -I./src/codegen -I./plugins -I./src/zen -I./src/utils -I./src/lexer -I./src/analysis -I./src/lsp -I./src/compat -DZC_STD_INSTALL_PATH='"$(DATADIR)"'
 TARGET = zc
 LIBS = -lm -lpthread -ldl
 
@@ -38,12 +44,6 @@ SRCS = src/main.c \
 
 OBJ_DIR = obj
 OBJS = $(patsubst %.c, $(OBJ_DIR)/%.o, $(SRCS))
-
-# Installation paths
-PREFIX = /usr/local
-BINDIR = $(PREFIX)/bin
-DATADIR = $(PREFIX)/share/zc
-MANDIR = $(PREFIX)/share/man/man1
 
 # Default target
 all: $(TARGET)

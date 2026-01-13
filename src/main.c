@@ -27,8 +27,9 @@ void print_search_paths()
     printf("Search paths:\n");
     printf("  ./\n");
     printf("  ./std/\n");
-    // TODO: Windows uses a different default install prefix.
-    printf("  /usr/local/lib/zen/\n");
+    printf("  %s/\n", zc_get_std_path());
+    printf("  %s/std/\n", zc_get_std_path());
+    printf("Environment: ZC_STD_PATH=%s\n", getenv("ZC_STD_PATH") ? getenv("ZC_STD_PATH") : "(not set)");
 }
 
 void print_usage()

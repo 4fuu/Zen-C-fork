@@ -753,3 +753,86 @@ int levenshtein(const char *s1, const char *s2)
     int result = matrix[len1 * cols + len2];
     return result;
 }
+
+// ** Standard Library Path Resolution **
+
+// Default install path (can be overridden at compile time via -DZC_STD_INSTALL_PATH=...)
+#ifndef ZC_STD_INSTALL_PATH
+#define ZC_STD_INSTALL_PATH "/usr/local/share/zc"
+#endif
+
+const char *zc_get_std_path(void)
+{
+    static char path[MAX_PATH_SIZE] = {0};
+    if (path[0]) return path;
+
+    // 1. Check environment variable (highest priority)
+    const char *env_path = getenv("ZC_STD_PATH");
+    if (env_path && env_path[0]) {
+        snprintf(path, sizeof(path), "%s", env_path);
+        return path;
+    }
+
+    // 2. Use compile-time install path
+    if (ZC_STD_INSTALL_PATH[0]) {
+        snprintf(path, sizeof(path), "%s", ZC_STD_INSTALL_PATH);
+        return path;
+    }
+
+    // 3. Fallback: current directory
+    snprintf(path, sizeof(path), ".");
+    return path;
+}
+
+// Check if file exists and is readable
+static int file_exists(const char *path)
+{
+#ifdef _WIN32
+    return _access(path, 4) == 0;  // 4 = read permission
+#else
+    return access(path, R_OK) == 0;
+#endif
+}
+
+char *zc_resolve_import_path(const char *filename, const char *current_file_dir)
+{
+    char try_path[MAX_PATH_SIZE];
+
+    // 1. Try relative to current file's directory
+    if (current_file_dir && current_file_dir[0]) {
+        snprintf(try_path, sizeof(try_path), "%s/%s", current_file_dir, filename);
+        if (file_exists(try_path)) {
+            return xstrdup(try_path);
+        }
+    }
+
+    // 2. Try current working directory
+    if (file_exists(filename)) {
+        return xstrdup(filename);
+    }
+
+    // 3. Try ./std/ subdirectory
+    snprintf(try_path, sizeof(try_path), "./std/%s", filename);
+    if (file_exists(try_path)) {
+        return xstrdup(try_path);
+    }
+
+    // 4. Try installed standard library path
+    const char *std_path = zc_get_std_path();
+    if (std_path && std_path[0]) {
+        // Try directly under std path
+        snprintf(try_path, sizeof(try_path), "%s/%s", std_path, filename);
+        if (file_exists(try_path)) {
+            return xstrdup(try_path);
+        }
+
+        // Try under std/ subdirectory
+        snprintf(try_path, sizeof(try_path), "%s/std/%s", std_path, filename);
+        if (file_exists(try_path)) {
+            return xstrdup(try_path);
+        }
+    }
+
+    // Not found
+    return NULL;
+}

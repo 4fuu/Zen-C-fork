@@ -117,6 +117,13 @@ void zpanic_at(Token t, const char *fmt, ...);
 
 char *load_file(const char *filename);
 
+// ** Standard Library Path Search **
+// Returns the resolved path if found, NULL otherwise
+// Caller must free the returned string
+char *zc_resolve_import_path(const char *filename, const char *current_file_dir);
+// Get the standard library base path (from env or compile-time)
+const char *zc_get_std_path(void);
+
 // ** Buffer Size Constants **
 #define MAX_FLAGS_SIZE 1024
 #define MAX_PATH_SIZE 1024
