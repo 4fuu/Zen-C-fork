@@ -20,6 +20,12 @@
 
 **Zen C** is a modern systems programming language that compiles to human-readable `GNU C`/`C11`. It provides a rich feature set including type inference, pattern matching, generics, traits, async/await, and manual memory management with RAII capabilities, all while maintaining 100% C ABI compatibility.
 
+## Community
+
+Join the discussion, share demos, ask questions, or report bugs in the official Zen C Discord server!
+
+- Discord: [Join here](https://discord.com/invite/q6wEsCmkJP)
+
 ---
 
 ## Quick Start
