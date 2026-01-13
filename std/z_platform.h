@@ -23,11 +23,6 @@
 /* ssize_t for Windows */
 typedef SSIZE_T ssize_t;
 
-/* MSVC does not support __attribute__((cleanup)), provide no-op */
-#ifdef _MSC_VER
-#define __attribute__(x)
-#endif
-
 /* Thread types */
 typedef HANDLE z_thread_t;
 
