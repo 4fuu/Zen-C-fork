@@ -3,8 +3,9 @@ import "./core.zc"
 import "./option.zc"
 
 raw {
+    extern size_t __zen_hash_seed;
     size_t _map_hash_str(const char* str) {
-        size_t hash = 14695981039346656037UL;
+        size_t hash = __zen_hash_seed;
         while (*str) {
             hash ^= (unsigned char)*str++;
             hash *= 1099511628211UL;

@@ -1216,7 +1216,118 @@ void run_repl(const char *self_path)
 
         if (history_len > 0 && !is_header_line(history[history_len - 1]))
         {
-            strcat(full_code, history[history_len - 1]);
+            char *last_line = history[history_len - 1];
+
+            char *check_buf = malloc(strlen(last_line) + 2);
+            strcpy(check_buf, last_line);
+            strcat(check_buf, ";");
+
+            ParserContext ctx = {0};
+            ctx.is_repl = 1;
+            ctx.skip_preamble = 1;
+            Lexer l;
+            lexer_init(&l, check_buf);
+            ASTNode *node = parse_statement(&ctx, &l);
+            free(check_buf);
+
+            int is_expr = 0;
+            if (node)
+            {
+                ASTNode *child = node;
+                if (child->type == NODE_EXPR_BINARY || child->type == NODE_EXPR_UNARY ||
+                    child->type == NODE_EXPR_LITERAL || child->type == NODE_EXPR_VAR ||
+                    child->type == NODE_EXPR_CALL || child->type == NODE_EXPR_MEMBER ||
+                    child->type == NODE_EXPR_INDEX || child->type == NODE_EXPR_CAST ||
+                    child->type == NODE_EXPR_SIZEOF || child->type == NODE_EXPR_STRUCT_INIT ||
+                    child->type == NODE_EXPR_ARRAY_LITERAL || child->type == NODE_EXPR_SLICE ||
+                    child->type == NODE_TERNARY || child->type == NODE_MATCH)
+                {
+                    is_expr = 1;
+                }
+            }
+
+            if (is_expr)
+            {
+                size_t probesz = 4096;
+                for (int i = 0; i < history_len - 1; i++)
+                {
+                    probesz += strlen(history[i]) + 2;
+                }
+                char *probe_code = malloc(probesz + strlen(last_line) + 512);
+                strcpy(probe_code, "");
+
+                for (int i = 0; i < history_len - 1; i++)
+                {
+                    if (is_header_line(history[i]))
+                    {
+                        strcat(probe_code, history[i]);
+                        strcat(probe_code, "\n");
+                    }
+                }
+
+                strcat(probe_code, "fn main() { _z_suppress_stdout(); ");
+
+                for (int i = 0; i < history_len - 1; i++)
+                {
+                    if (!is_header_line(history[i]))
+                    {
+                        strcat(probe_code, history[i]);
+                        strcat(probe_code, " ");
+                    }
+                }
+
+                strcat(probe_code, " raw { typedef struct { int _u; } __REVEAL_TYPE__; } ");
+                strcat(probe_code, " var _z_type_probe: __REVEAL_TYPE__; _z_type_probe = (");
+                strcat(probe_code, last_line);
+                strcat(probe_code, "); }");
+
+                char p_path[256];
+                sprintf(p_path, "/tmp/zprep_repl_probe_%d.zc", rand());
+                FILE *pf = fopen(p_path, "w");
+                if (pf)
+                {
+                    fprintf(pf, "%s", probe_code);
+                    fclose(pf);
+
+                    char p_cmd[2048];
+                    sprintf(p_cmd, "%s run -q %s 2>&1", self_path, p_path);
+
+                    FILE *pp = popen(p_cmd, "r");
+                    int is_void = 0;
+                    if (pp)
+                    {
+                        char buf[1024];
+                        while (fgets(buf, sizeof(buf), pp))
+                        {
+                            if (strstr(buf, "void") && strstr(buf, "expression"))
+                            {
+                                is_void = 1;
+                            }
+                        }
+                        pclose(pp);
+                    }
+
+                    if (!is_void)
+                    {
+                        strcat(full_code, "println \"{");
+                        strcat(full_code, last_line);
+                        strcat(full_code, "}\";");
+                    }
+                    else
+                    {
+                        strcat(full_code, last_line);
+                    }
+                }
+                else
+                {
+                    strcat(full_code, last_line);
+                }
+                free(probe_code);
+            }
+            else
+            {
+                strcat(full_code, last_line);
+            }
         }
 
         if (watches_len > 0)
@@ -1250,7 +1361,7 @@ void run_repl(const char *self_path)
         free(full_code);
 
         char cmd[2048];
-        sprintf(cmd, "%s run -q --repl %s", self_path, tmp_path);
+        sprintf(cmd, "%s run -q %s", self_path, tmp_path);
 
         int ret = system(cmd);
         printf("\n");

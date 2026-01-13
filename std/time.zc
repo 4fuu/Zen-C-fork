@@ -29,7 +29,16 @@ impl Duration {
 
 struct Time {}
 
+extern size_t __zen_hash_seed;
+
 impl Time {
+    fn randomize_hash() {
+        raw {
+            srand(time(NULL));
+            __zen_hash_seed ^= (size_t)rand();
+        }
+    }
+
     fn now() -> U64 {
         return _time_now_impl();
     }

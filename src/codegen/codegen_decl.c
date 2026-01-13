@@ -425,7 +425,7 @@ void emit_globals(ParserContext *ctx, ASTNode *node, FILE *out)
             }
             if (node->var_decl.type_str)
             {
-                fprintf(out, "%s %s", node->var_decl.type_str, node->var_decl.name);
+                emit_var_decl_type(ctx, out, node->var_decl.type_str, node->var_decl.name);
             }
             else
             {
@@ -437,7 +437,7 @@ void emit_globals(ParserContext *ctx, ASTNode *node, FILE *out)
 
                 if (inferred && strcmp(inferred, "__auto_type") != 0)
                 {
-                    fprintf(out, "%s %s", inferred, node->var_decl.name);
+                    emit_var_decl_type(ctx, out, inferred, node->var_decl.name);
                 }
                 else
                 {

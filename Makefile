@@ -1,4 +1,7 @@
-
+# Compiler configuration
+# Default: gcc
+# To build with clang: make CC=clang
+# To build with zig:   make CC="zig cc"
 CC = gcc
 CFLAGS = -Wall -Wextra -g -I./src -I./src/ast -I./src/parser -I./src/codegen -I./plugins -I./src/zen -I./src/utils -I./src/lexer -I./src/analysis -I./src/lsp -I./src/compat
 TARGET = zc
@@ -79,4 +82,11 @@ clean:
 test: $(TARGET)
 	./tests/run_tests.sh
 
-.PHONY: all clean install uninstall test
+# Build with alternative compilers
+zig:
+	$(MAKE) CC="zig cc"
+
+clang:
+	$(MAKE) CC=clang
+
+.PHONY: all clean install uninstall test zig clang

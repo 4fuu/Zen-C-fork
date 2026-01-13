@@ -10,8 +10,10 @@
 #include "../plugins/plugin_manager.h"
 #include "../zen/zen_facts.h"
 #include "zprep_plugin.h"
+#include "../codegen/codegen.h"
 
 static char *curr_func_ret = NULL;
+char *run_comptime_block(ParserContext *ctx, Lexer *l);
 
 static void check_assignment_condition(ASTNode *cond)
 {
@@ -219,7 +221,6 @@ ASTNode *parse_match(ParserContext *ctx, Lexer *l)
             Token p = lexer_next(l);
             char *p_str = token_strdup(p);
 
-            // === [FIX] Handle Namespacing (Enum::Variant) ===
             while (lexer_peek(l).type == TOK_DCOLON)
             {
                 lexer_next(l); // eat ::
@@ -230,7 +231,6 @@ ASTNode *parse_match(ParserContext *ctx, Lexer *l)
                 free(p_str);
                 p_str = tmp;
             }
-            // ================================================
 
             if (pattern_count > 0)
             {
@@ -1095,14 +1095,12 @@ ASTNode *parse_var_decl(ParserContext *ctx, Lexer *l)
 
         if (init && type)
         {
-            // 1. Get RHS Type
             char *rhs_type = init->resolved_type;
             if (!rhs_type && init->type_info)
             {
                 rhs_type = type_to_string(init->type_info);
             }
 
-            // 2. Check for Pointer Mismatch (Target* = Source*)
             if (rhs_type && strchr(type, '*') && strchr(rhs_type, '*'))
             {
                 // Strip stars to get struct names
@@ -1113,10 +1111,8 @@ ASTNode *parse_var_decl(ParserContext *ctx, Lexer *l)
                 strcpy(source_struct, rhs_type);
                 source_struct[strlen(source_struct) - 1] = 0;
 
-                // 3. Look up Source definition to find its Parent
                 ASTNode *def = find_struct_def(ctx, source_struct);
 
-                // 4. If Source's parent matches Target, Inject Cast!
                 if (def && def->strct.parent && strcmp(def->strct.parent, target_struct) == 0)
                 {
                     // Create Cast Node
@@ -1130,10 +1126,9 @@ ASTNode *parse_var_decl(ParserContext *ctx, Lexer *l)
             }
         }
 
-        // --- Type Inference Logic ---
+        // ** Type Inference Logic **
         if (!type && init)
         {
-            // FIX: Trust the AST type info if available (handles Calls, Binary Ops)
             if (init->type_info)
             {
                 type_obj = init->type_info;
@@ -1296,7 +1291,6 @@ ASTNode *parse_const(ParserContext *ctx, Lexer *l)
                 s->is_const_value = 1;
                 s->const_int_val = val;
 
-                // FIX: Infer type 'int' if unknown
                 if (!s->type_name || strcmp(s->type_name, "unknown") == 0)
                 {
                     if (s->type_name)
@@ -1760,9 +1754,6 @@ char *process_printf_sugar(ParserContext *ctx, const char *content, int newline,
             fmt = colon + 1;
         }
 
-        // ============================================================
-        // === [NEW] Auto-detect to_string() overload ===
-        // ============================================================
         char *clean_expr = expr;
         while (*clean_expr == ' ')
         {
@@ -1802,7 +1793,6 @@ char *process_printf_sugar(ParserContext *ctx, const char *content, int newline,
                 expr = allocated_expr;
             }
         }
-        // ============================================================
 
         // Rewrite the expression to handle pointer access (header_ptr.magic ->
         // header_ptr->magic)
@@ -2159,6 +2149,44 @@ ASTNode *parse_statement(ParserContext *ctx, Lexer *l)
     if (tk.type == TOK_TEST)
     {
         return parse_test(ctx, l);
+    }
+    if (tk.type == TOK_COMPTIME)
+    {
+        char *src = run_comptime_block(ctx, l);
+        Lexer new_l;
+        lexer_init(&new_l, src);
+        ASTNode *head = NULL, *tail = NULL;
+
+        while (lexer_peek(&new_l).type != TOK_EOF)
+        {
+            ASTNode *s = parse_statement(ctx, &new_l);
+            if (!s)
+            {
+                break;
+            }
+            if (!head)
+            {
+                head = s;
+            }
+            else
+            {
+                tail->next = s;
+            }
+            tail = s;
+            while (tail->next)
+            {
+                tail = tail->next;
+            }
+        }
+
+        if (head && !head->next)
+        {
+            return head;
+        }
+
+        ASTNode *b = ast_create(NODE_BLOCK);
+        b->block.statements = head;
+        return b;
     }
     if (tk.type == TOK_ASSERT)
     {
@@ -2576,6 +2604,39 @@ ASTNode *parse_block(ParserContext *ctx, Lexer *l)
             unreachable = 2; // Warned once, don't spam
         }
 
+        if (tk.type == TOK_COMPTIME)
+        {
+            // lexer_next(l); // don't eat here, run_comptime_block expects it
+            char *src = run_comptime_block(ctx, l);
+            Lexer new_l;
+            lexer_init(&new_l, src);
+            // Parse statements from the generated source
+            while (lexer_peek(&new_l).type != TOK_EOF)
+            {
+                ASTNode *s = parse_statement(ctx, &new_l);
+                if (!s)
+                {
+                    break; // EOF or error handling dependency
+                }
+
+                // Link
+                if (!head)
+                {
+                    head = s;
+                }
+                else
+                {
+                    tail->next = s;
+                }
+                tail = s;
+                while (tail->next)
+                {
+                    tail = tail->next;
+                }
+            }
+            continue;
+        }
+
         ASTNode *s = parse_statement(ctx, l);
         if (s)
         {
@@ -2647,7 +2708,6 @@ ASTNode *parse_block(ParserContext *ctx, Lexer *l)
     return b;
 }
 
-// FIX: Robust struct field parsing
 // Trait Parsing
 ASTNode *parse_trait(ParserContext *ctx, Lexer *l)
 {
@@ -2998,8 +3058,6 @@ ASTNode *parse_impl(ParserContext *ctx, Lexer *l)
                     free(f->func.args);
                     f->func.args = na;
 
-                    // FIX: Register the MANGLED name so calls like String_from(...) find
-                    // the return type
                     register_func(ctx, mangled, f->func.arg_count, f->func.defaults,
                                   f->func.arg_types, f->func.ret_type_info, f->func.is_varargs, 0,
                                   f->token);
@@ -3761,12 +3819,13 @@ ASTNode *parse_import(ParserContext *ctx, Lexer *l)
     return r;
 }
 
-ASTNode *parse_comptime(ParserContext *ctx, Lexer *l)
+// Helper: Execute comptime block and return generated source
+char *run_comptime_block(ParserContext *ctx, Lexer *l)
 {
+    (void)ctx;
     expect(l, TOK_COMPTIME, "comptime");
     expect(l, TOK_LBRACE, "expected { after comptime");
 
-    // 1. Extract Raw Code
     const char *start = l->src + l->pos;
     int depth = 1;
     while (depth > 0)
@@ -3792,7 +3851,23 @@ ASTNode *parse_comptime(ParserContext *ctx, Lexer *l)
     strncpy(code, start, len);
     code[len] = 0;
 
-    // 2. Wrap and Write
+    // Wrap in block to parse mixed statements/declarations
+    int wrapped_len = len + 4; // "{ " + code + " }"
+    char *wrapped_code = xmalloc(wrapped_len + 1);
+    sprintf(wrapped_code, "{ %s }", code);
+
+    Lexer cl;
+    lexer_init(&cl, wrapped_code);
+    ParserContext cctx;
+    memset(&cctx, 0, sizeof(cctx));
+    enter_scope(&cctx); // Global scope
+    register_builtins(&cctx);
+
+    ASTNode *block = parse_block(&cctx, &cl);
+    ASTNode *nodes = block ? block->block.statements : NULL;
+
+    free(wrapped_code);
+
     char filename[64];
     sprintf(filename, "_tmp_comptime_%d.c", rand());
     FILE *f = fopen(filename, "w");
@@ -3801,20 +3876,79 @@ ASTNode *parse_comptime(ParserContext *ctx, Lexer *l)
         zpanic("Could not create temp file %s", filename);
     }
 
-    // Stdout capture wrapper
-    // We assume the user writes C code that fits in main(), or includes headers.
-    // For simplicity V1: We provide standard headers and wrap content in main if
-    // it doesn't look like definitions? Actually failure mode: User defines
-    // functions. Better: User provides body of main() or definitions. Heuristic:
-    // If we wrap in main, we can't define functions inside main (standard C).
-    // Proposal: User code runs AS IS. User must provide main(). Wait, user
-    // example: printf("..."); If I just paste printf("..."), it needs a main.
-    // Let's wrap in main() by default.
-    fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n");
-    fprintf(f, "int main() {\n%s\nreturn 0;\n}\n", code);
+    emit_preamble(f);
+    fprintf(
+        f,
+        "size_t _z_check_bounds(size_t index, size_t size) { if (index >= size) { fprintf(stderr, "
+        "\"Index out of bounds: %%zu >= %%zu\\n\", index, size); exit(1); } return index; }\n");
+
+    ASTNode *curr = nodes;
+    ASTNode *stmts = NULL;
+    ASTNode *stmts_tail = NULL;
+
+    while (curr)
+    {
+        ASTNode *next = curr->next;
+        curr->next = NULL;
+
+        if (curr->type == NODE_INCLUDE)
+        {
+            emit_includes_and_aliases(curr, f);
+        }
+        else if (curr->type == NODE_STRUCT)
+        {
+            emit_struct_defs(&cctx, curr, f);
+        }
+        else if (curr->type == NODE_ENUM)
+        {
+            emit_enum_protos(curr, f);
+        }
+        else if (curr->type == NODE_CONST)
+        {
+            emit_globals(&cctx, curr, f);
+        }
+        else if (curr->type == NODE_FUNCTION)
+        {
+            codegen_node_single(&cctx, curr, f);
+        }
+        else if (curr->type == NODE_IMPL)
+        {
+            // Impl support pending
+        }
+        else
+        {
+            // Statement or expression -> main
+            if (!stmts)
+            {
+                stmts = curr;
+            }
+            else
+            {
+                stmts_tail->next = curr;
+            }
+            stmts_tail = curr;
+        }
+        curr = next;
+    }
+
+    fprintf(f, "int main() {\n");
+    curr = stmts;
+    while (curr)
+    {
+        if (curr->type >= NODE_EXPR_BINARY && curr->type <= NODE_EXPR_SLICE)
+        {
+            codegen_expression(&cctx, curr, f);
+            fprintf(f, ";\n");
+        }
+        else
+        {
+            codegen_node_single(&cctx, curr, f);
+        }
+        curr = curr->next;
+    }
+    fprintf(f, "return 0;\n}\n");
     fclose(f);
 
-    // 3. Compile
     char cmd[4096];
     char bin[1024];
     sprintf(bin, "%s.bin", filename);
@@ -3823,19 +3957,9 @@ ASTNode *parse_comptime(ParserContext *ctx, Lexer *l)
     int res = system(cmd);
     if (res != 0)
     {
-        // Retry without wrapper (maybe user provided main)
-        f = fopen(filename, "w");
-        fprintf(f, "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n");
-        fprintf(f, "%s\n", code);
-        fclose(f);
-        res = system(cmd);
-        if (res != 0)
-        {
-            zpanic("Comptime compilation failed for:\n%s", code);
-        }
+        zpanic("Comptime compilation failed for:\n%s", code);
     }
 
-    // 4. Run and Capture
     char out_file[1024];
     sprintf(out_file, "%s.out", filename);
     sprintf(cmd, "./%s > %s", bin, out_file);
@@ -3844,7 +3968,6 @@ ASTNode *parse_comptime(ParserContext *ctx, Lexer *l)
         zpanic("Comptime execution failed");
     }
 
-    // 5. Read Output
     char *output_src = load_file(out_file);
     if (!output_src)
     {
@@ -3855,13 +3978,17 @@ ASTNode *parse_comptime(ParserContext *ctx, Lexer *l)
     remove(filename);
     remove(bin);
     remove(out_file);
-    free(code); // bin and out_file are strings on stack
+    free(code);
 
-    // 6. Parse Output (Recursively)
+    return output_src;
+}
+
+ASTNode *parse_comptime(ParserContext *ctx, Lexer *l)
+{
+    char *output_src = run_comptime_block(ctx, l);
+
     Lexer new_l;
     lexer_init(&new_l, output_src);
-    // Note: Recursive call. We leak output_src intentionally so AST tokens remain
-    // valid. In a long running process we would manage this in an Arena.
     return parse_program_nodes(ctx, &new_l);
 }
 

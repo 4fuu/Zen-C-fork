@@ -174,6 +174,7 @@ typedef struct
     int quiet;           // 1 if --quiet.
     int repl_mode;       // 1 if --repl (internal flag for REPL usage).
     int is_freestanding; // 1 if --freestanding.
+    int mode_transpile;  // 1 if 'transpile' command.
 
     // GCC Flags accumulator.
     char gcc_flags[4096];

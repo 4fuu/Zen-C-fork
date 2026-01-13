@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Zen-C Test Suite Runner
+# Usage: ./tests/run_tests.sh [zc options]
+#
+# Examples:
+#   ./tests/run_tests.sh                    # Test with default compiler (gcc)
+#   ./tests/run_tests.sh --cc clang         # Test with clang
+#   ./tests/run_tests.sh --cc zig           # Test with zig cc
+#   ./tests/run_tests.sh --cc tcc           # Test with tcc
+
 # Configuration
 ZC="./zc"
 TEST_DIR="tests"
@@ -7,7 +16,17 @@ PASSED=0
 FAILED=0
 FAILED_TESTS=""
 
-echo "** Running Zen C test suite **"
+# Display which compiler is being used
+CC_NAME="gcc (default)"
+for arg in "$@"; do
+    if [ "$prev_arg" = "--cc" ]; then
+        CC_NAME="$arg"
+        break
+    fi
+    prev_arg="$arg"
+done
+
+echo "** Running Zen C test suite (compiler: $CC_NAME) **"
 
 if [ ! -f "$ZC" ]; then
     echo "Error: zc binary not found. Please build it first."

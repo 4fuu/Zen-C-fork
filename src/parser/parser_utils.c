@@ -1057,7 +1057,15 @@ Type *replace_type_formal(Type *t, const char *p, const char *c, const char *os,
         {
             return type_new(TYPE_F32);
         }
+        if (strcmp(c, "f32") == 0)
+        {
+            return type_new(TYPE_F32);
+        }
         if (strcmp(c, "F64") == 0)
+        {
+            return type_new(TYPE_F64);
+        }
+        if (strcmp(c, "f64") == 0)
         {
             return type_new(TYPE_F64);
         }
@@ -1079,6 +1087,46 @@ Type *replace_type_formal(Type *t, const char *p, const char *c, const char *os,
             return type_new(TYPE_I128);
         }
         if (strcmp(c, "U128") == 0)
+        {
+            return type_new(TYPE_U128);
+        }
+        if (strcmp(c, "i8") == 0)
+        {
+            return type_new(TYPE_I8);
+        }
+        if (strcmp(c, "u8") == 0)
+        {
+            return type_new(TYPE_U8);
+        }
+        if (strcmp(c, "i16") == 0)
+        {
+            return type_new(TYPE_I16);
+        }
+        if (strcmp(c, "u16") == 0)
+        {
+            return type_new(TYPE_U16);
+        }
+        if (strcmp(c, "i32") == 0)
+        {
+            return type_new(TYPE_I32);
+        }
+        if (strcmp(c, "u32") == 0)
+        {
+            return type_new(TYPE_U32);
+        }
+        if (strcmp(c, "i64") == 0)
+        {
+            return type_new(TYPE_I64);
+        }
+        if (strcmp(c, "u64") == 0)
+        {
+            return type_new(TYPE_U64);
+        }
+        if (strcmp(c, "i128") == 0)
+        {
+            return type_new(TYPE_I128);
+        }
+        if (strcmp(c, "u128") == 0)
         {
             return type_new(TYPE_U128);
         }

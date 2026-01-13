@@ -3,6 +3,7 @@
 #include "parser/parser.h"
 #include "plugins/plugin_manager.h"
 #include "repl/repl.h"
+#include "zen/zen_facts.h"
 #include "zprep.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,12 +36,13 @@ void print_usage()
     printf("  build   Compile to executable\n");
     printf("  check   Check for errors only\n");
     printf("  repl    Start Interactive REPL\n");
+    printf("  transpile Transpile to C code only (no compilation)\n");
     printf("  lsp     Start Language Server\n");
     printf("Options:\n");
     printf("  -o <file>       Output executable name\n");
     printf("  --emit-c        Keep generated C file (out.c)\n");
     printf("  --freestanding  Freestanding mode (no stdlib)\n");
-    printf("  --cc <compiler> C compiler to use (gcc, clang, tcc)\n");
+    printf("  --cc <compiler> C compiler to use (gcc, clang, tcc, zig)\n");
     printf("  -O<level>       Optimization level\n");
     printf("  -g              Debug info\n");
     printf("  -v, --verbose   Verbose output\n");
@@ -72,6 +74,11 @@ int main(int argc, char **argv)
     {
         run_repl(argv[0]); // Pass self path for recursive calls
         return 0;
+    }
+    else if (strcmp(command, "transpile") == 0)
+    {
+        g_config.mode_transpile = 1;
+        g_config.emit_c = 1; // Transpile implies emitting C
     }
     else if (strcmp(command, "run") == 0)
     {
@@ -139,7 +146,16 @@ int main(int argc, char **argv)
         {
             if (i + 1 < argc)
             {
-                strcpy(g_config.cc, argv[++i]);
+                char *cc_arg = argv[++i];
+                // Handle "zig" shorthand for "zig cc"
+                if (strcmp(cc_arg, "zig") == 0)
+                {
+                    strcpy(g_config.cc, "zig cc");
+                }
+                else
+                {
+                    strcpy(g_config.cc, cc_arg);
+                }
             }
         }
         else if (strcmp(arg, "-o") == 0)
@@ -196,6 +212,7 @@ int main(int argc, char **argv)
     }
 
     init_builtins();
+    zen_init();
 
     // Initialize Plugin Manager
     zptr_plugin_mgr_init();
@@ -245,10 +262,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // Checking mode?
-    // analyze(root); // Implicit in parsing or separate step? Assuming separate
-    // if check_mode
-
     if (g_config.mode_check)
     {
         // Just verify
@@ -266,6 +279,32 @@ int main(int argc, char **argv)
 
     codegen_node(&ctx, root, out);
     fclose(out);
+
+    if (g_config.mode_transpile)
+    {
+        if (g_config.output_file)
+        {
+            // If user specified -o, rename out.c to that
+            if (rename("out.c", g_config.output_file) != 0)
+            {
+                perror("rename out.c");
+                return 1;
+            }
+            if (!g_config.quiet)
+            {
+                printf("[zc] Transpiled to %s\n", g_config.output_file);
+            }
+        }
+        else
+        {
+            if (!g_config.quiet)
+            {
+                printf("[zc] Transpiled to out.c\n");
+            }
+        }
+        // Done, no C compilation
+        return 0;
+    }
 
     // Compile C
     char cmd[8192];
@@ -306,11 +345,13 @@ int main(int argc, char **argv)
         sprintf(run_cmd, "./%s", outfile);
 #endif
         ret = system(run_cmd);
-        // Clean up executable
         remove(outfile);
+        zptr_plugin_mgr_cleanup();
+        zen_trigger_global();
         return ret;
     }
 
     zptr_plugin_mgr_cleanup();
+    zen_trigger_global();
     return 0;
 }

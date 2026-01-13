@@ -494,7 +494,7 @@ void codegen_expression(ParserContext *ctx, ASTNode *node, FILE *out)
 
         else
         {
-            fprintf(out, "%d", node->literal.int_val);
+            fprintf(out, "%lluULL", (unsigned long long)node->literal.int_val);
         }
         break;
     case NODE_EXPR_CALL:

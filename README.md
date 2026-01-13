@@ -78,15 +78,15 @@ y = 20;    // OK
 | Type | C Equivalent | Description |
 |:---|:---|:---|
 | `int`, `uint` | `int`, `unsigned int` | Platform standard integer |
-| `I8` .. `I128` | `int8_t` .. `__int128_t` | Signed fixed-width integers |
-| `U8` .. `U128` | `uint8_t` .. `__uint128_t` | Unsigned fixed-width integers |
+| `I8` .. `I128` or `i8` .. `i128` | `int8_t` .. `__int128_t` | Signed fixed-width integers |
+| `U8` .. `U128` or `u8` .. `u128` | `uint8_t` .. `__uint128_t` | Unsigned fixed-width integers |
 | `isize`, `usize` | `ptrdiff_t`, `size_t` | Pointer-sized integers |
 | `byte` | `uint8_t` | Alias for U8 |
-| `F32`, `F64` | `float`, `double` | Floating point numbers |
+| `F32`, `F64` or `f32`, `f64`  | `float`, `double` | Floating point numbers |
 | `bool` | `bool` | `true` or `false` |
 | `char` | `char` | Single character |
 | `string` | `char*` | C-string (null-terminated) |
-| `U0`, `void` | `void` | Empty type |
+| `U0`, `u0`, `void` | `void` | Empty type |
 
 ### 3. Aggregate Types
 
@@ -435,6 +435,36 @@ fn add(a: int, b: int) -> int {
 
 > **Note:** When using Intel syntax (via `-masm=intel`), you must ensure your build is configured correctly (for example, `//> cflags: -masm=intel`). TCC does not support Intel syntax assembly.
 
+### 14. Build Directives
+
+Zen C supports special comments at the top of your source file to configure the build process without needing a complex build system or Makefile.
+
+| Directive | Arguments | Description |
+|:---|:---|:---|
+| `//> link:` | `-lfoo` or `path/to/lib.a` | Link against a library or object file. |
+| `//> lib:` | `path/to/libs` | Add a library search path (`-L`). |
+| `//> include:` | `path/to/headers` | Add an include search path (`-I`). |
+| `//> cflags:` | `-Wall -O3` | Pass arbitrary flags to the C compiler. |
+| `//> define:` | `MACRO` or `KEY=VAL` | Define a preprocessor macro (`-D`). |
+| `//> pkg-config:` | `gtk+-3.0` | Run `pkg-config` and append `--cflags` and `--libs`. |
+| `//> shell:` | `command` | Execute a shell command during the build. |
+| `//> get:` | `http://url/file` | Download a file if specific file does not exist. |
+| `//> immutable-by-default` | None | Make variables immutable unless declared `mut`. |
+
+#### Examples
+
+```zc
+//> include: ./include
+//> lib: ./libs
+//> link: -lraylib -lm
+//> cflags: -Ofast
+//> pkg-config: gtk+-3.0
+
+import "raylib.h"
+
+fn main() { ... }
+```
+
 ---
 
 ## Compiler Support & Compatibility
@@ -443,6 +473,7 @@ Zen C is designed to work with most C11 compilers. Some features rely on GNU C e
 
 ```bash
 zc run app.zc --cc clang
+zc run app.zc --cc zig
 ```
 
 ### Test Suite Status
@@ -451,9 +482,22 @@ zc run app.zc --cc clang
 |:---|:---:|:---|:---|
 | **GCC** | **100%** | All Features | None. |
 | **Clang** | **100%** | All Features | None. |
+| **Zig** | **100%** | All Features | None. Uses `zig cc` as a drop-in C compiler. |
 | **TCC** | **~70%** | Basic Syntax, Generics, Traits | No `__auto_type`, No Intel ASM, No Nested Functions. |
 
-> **Recommendation:** Use **GCC** or **Clang** for production builds. TCC is excellent for rapid prototyping due to its compilation speed but misses some advanced C extensions Zen C relies on for full feature support.
+> **Recommendation:** Use **GCC**, **Clang**, or **Zig** for production builds. TCC is excellent for rapid prototyping due to its compilation speed but misses some advanced C extensions Zen C relies on for full feature support.
+
+### Building with Zig
+
+Zig's `zig cc` command provides a drop-in replacement for GCC/Clang with excellent cross-compilation support. To use Zig:
+
+```bash
+# Compile and run a Zen C program with Zig
+zc run app.zc --cc zig
+
+# Build the Zen C compiler itself with Zig
+make zig
+```
 
 ---
 
@@ -482,6 +526,8 @@ make test
 
 # Run with different compiler
 ./tests/run_tests.sh --cc clang
+./tests/run_tests.sh --cc zig
+./tests/run_tests.sh --cc tcc
 ```
 
 ### Extending the Compiler

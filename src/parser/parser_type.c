@@ -79,6 +79,39 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
             {
                 resolved_suffix = "uint64_t";
             }
+            // Lowercase aliases
+            else if (strcmp(suffix, "i8") == 0)
+            {
+                resolved_suffix = "int8_t";
+            }
+            else if (strcmp(suffix, "u8") == 0)
+            {
+                resolved_suffix = "uint8_t";
+            }
+            else if (strcmp(suffix, "i16") == 0)
+            {
+                resolved_suffix = "int16_t";
+            }
+            else if (strcmp(suffix, "u16") == 0)
+            {
+                resolved_suffix = "uint16_t";
+            }
+            else if (strcmp(suffix, "i32") == 0)
+            {
+                resolved_suffix = "int32_t";
+            }
+            else if (strcmp(suffix, "u32") == 0)
+            {
+                resolved_suffix = "uint32_t";
+            }
+            else if (strcmp(suffix, "i64") == 0)
+            {
+                resolved_suffix = "int64_t";
+            }
+            else if (strcmp(suffix, "u64") == 0)
+            {
+                resolved_suffix = "uint64_t";
+            }
             else if (strcmp(suffix, "usize") == 0)
             {
                 resolved_suffix = "size_t";
@@ -119,6 +152,11 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
 
         // Check for Primitives (Base types)
         if (strcmp(name, "U0") == 0)
+        {
+            free(name);
+            return type_new(TYPE_VOID);
+        }
+        if (strcmp(name, "u0") == 0)
         {
             free(name);
             return type_new(TYPE_VOID);
@@ -168,7 +206,17 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
             free(name);
             return type_new(TYPE_F32);
         }
+        if (strcmp(name, "f32") == 0)
+        {
+            free(name);
+            return type_new(TYPE_F32);
+        }
         if (strcmp(name, "F64") == 0)
+        {
+            free(name);
+            return type_new(TYPE_F64);
+        }
+        if (strcmp(name, "f64") == 0)
         {
             free(name);
             return type_new(TYPE_F64);
@@ -194,6 +242,56 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
             return type_new(TYPE_I128);
         }
         if (strcmp(name, "U128") == 0)
+        {
+            free(name);
+            return type_new(TYPE_U128);
+        }
+        if (strcmp(name, "i8") == 0)
+        {
+            free(name);
+            return type_new(TYPE_I8);
+        }
+        if (strcmp(name, "u8") == 0)
+        {
+            free(name);
+            return type_new(TYPE_U8);
+        }
+        if (strcmp(name, "i16") == 0)
+        {
+            free(name);
+            return type_new(TYPE_I16);
+        }
+        if (strcmp(name, "u16") == 0)
+        {
+            free(name);
+            return type_new(TYPE_U16);
+        }
+        if (strcmp(name, "i32") == 0)
+        {
+            free(name);
+            return type_new(TYPE_I32);
+        }
+        if (strcmp(name, "u32") == 0)
+        {
+            free(name);
+            return type_new(TYPE_U32);
+        }
+        if (strcmp(name, "i64") == 0)
+        {
+            free(name);
+            return type_new(TYPE_I64);
+        }
+        if (strcmp(name, "u64") == 0)
+        {
+            free(name);
+            return type_new(TYPE_U64);
+        }
+        if (strcmp(name, "i128") == 0)
+        {
+            free(name);
+            return type_new(TYPE_I128);
+        }
+        if (strcmp(name, "u128") == 0)
         {
             free(name);
             return type_new(TYPE_U128);
@@ -300,7 +398,6 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
                 zpanic_at(t, "Expected > after generic");
             }
 
-            // --- INSTANTIATION TRIGGER ---
             char *arg_str = type_to_string(arg);
             instantiate_generic(ctx, name, arg_str);
 

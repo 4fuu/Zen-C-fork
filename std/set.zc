@@ -1,0 +1,164 @@
+
+import "./core.zc"
+import "./option.zc"
+
+raw {
+    extern size_t __zen_hash_seed;
+    size_t _set_hash(const void* data, size_t len) {
+        size_t hash = __zen_hash_seed;
+        const unsigned char* bytes = (const unsigned char*)data;
+        for (size_t i = 0; i < len; i++) {
+            hash ^= bytes[i];
+            hash *= 1099511628211UL;
+        }
+        return hash;
+    }
+}
+
+struct Set<T> {
+    data: T*;
+    occupied: bool*;
+    deleted: bool*;
+    len: usize;
+    cap: usize;
+}
+
+impl Set<T> {
+    fn new() -> Set<T> {
+        return Set<T> { data: 0, occupied: 0, deleted: 0, len: 0, cap: 0 };
+    }
+
+    fn _resize(self, new_cap: usize) {
+        var old_data = self.data;
+        var old_occupied = self.occupied;
+        var old_deleted = self.deleted;
+        var old_cap = self.cap;
+
+        self.cap = new_cap;
+        self.data = calloc(new_cap, sizeof(T));
+        self.occupied = calloc(new_cap, sizeof(bool));
+        self.deleted = calloc(new_cap, sizeof(bool));
+        self.len = 0;
+
+        for (var i: usize = 0; i < old_cap; i = i + 1) {
+            if (old_occupied[i] && !old_deleted[i]) {
+                self.add(old_data[i]);
+            }
+        }
+
+        if (old_data != NULL) { free(old_data); }
+        if (old_occupied != NULL) { free(old_occupied); }
+        if (old_deleted != NULL) { free(old_deleted); }
+    }
+
+    fn add(self, val: T) -> bool {
+        if (self.contains(val)) {
+            return false;
+        }
+
+        if (self.len >= self.cap * 0.75) {
+            var new_cap = self.cap * 2;
+            if (new_cap < 8) new_cap = 8;
+            self._resize(new_cap);
+        }
+
+        var hash = _set_hash(&val, sizeof(T));
+        var idx = hash % self.cap;
+
+        while (self.occupied[idx] && !self.deleted[idx]) {
+            idx = (idx + 1) % self.cap;
+        }
+
+        self.data[idx] = val;
+        self.occupied[idx] = true;
+        self.deleted[idx] = false;
+        self.len = self.len + 1;
+        return true;
+    }
+
+    fn contains(self, val: T) -> bool {
+        if (self.cap == 0) {
+            return false;
+        }
+
+        var hash = _set_hash(&val, sizeof(T));
+        var idx = hash % self.cap;
+        var start_idx = idx;
+
+        while (self.occupied[idx]) {
+            if (!self.deleted[idx] && self.data[idx] == val) {
+                return true;
+            }
+
+            idx = (idx + 1) % self.cap;
+            if (idx == start_idx) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    fn remove(self, val: T) -> bool {
+        if (self.cap == 0) return false;
+
+        var hash = _set_hash(&val, sizeof(T));
+        var idx = hash % self.cap;
+        var start_idx = idx;
+
+        while (self.occupied[idx]) {
+            if (!self.deleted[idx] && self.data[idx] == val) {
+                self.deleted[idx] = true;
+                self.len = self.len - 1;
+                return true;
+            }
+
+            idx = (idx + 1) % self.cap;
+            if (idx == start_idx) return false;
+        }
+        return false;
+    }
+
+    fn length(self) -> usize {
+        return self.len;
+    }
+
+    fn is_empty(self) -> bool {
+        return self.len == 0;
+    }
+
+    fn free(self) {
+        if (self.data) {
+            free(self.data);
+            free(self.occupied);
+            free(self.deleted);
+        }
+        self.data = 0;
+        self.occupied = 0;
+        self.deleted = 0;
+        self.len = 0;
+        self.cap = 0;
+    }
+
+    fn capacity(self) -> usize {
+        return self.cap;
+    }
+
+    fn is_slot_occupied(self, idx: usize) -> bool {
+        if (idx >= self.cap) return false;
+        return self.occupied[idx] && !self.deleted[idx];
+    }
+
+    fn val_at(self, idx: usize) -> Option<T> {
+        if (idx >= self.cap || !self.occupied[idx] || self.deleted[idx]) {
+            return Option<T>::None();
+        }
+        return Option<T>::Some(self.data[idx]);
+    }
+    fn clear(self) {
+        for (var i: usize = 0; i < self.cap; i = i + 1) {
+            self.occupied[i] = false;
+            self.deleted[i] = false;
+        }
+        self.len = 0;
+    }
+}

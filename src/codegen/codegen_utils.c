@@ -117,6 +117,15 @@ char *infer_type(ParserContext *ctx, ASTNode *node)
         return node->resolved_type;
     }
 
+    if (node->type == NODE_EXPR_LITERAL)
+    {
+        if (node->type_info)
+        {
+            return type_to_string(node->type_info);
+        }
+        return NULL;
+    }
+
     if (node->type == NODE_EXPR_VAR)
     {
         Symbol *sym = find_symbol_entry(ctx, node->var_ref.name);
