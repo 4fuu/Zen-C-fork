@@ -38,7 +38,7 @@ sudo make install
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-cmake --install build
+cmake --install build --config Debug --prefix .
 ```
 
 Note: On Windows, you can build the compiler with MSVC, but you still need GCC/MinGW to compile generated C code from `zc` programs at the moment.
