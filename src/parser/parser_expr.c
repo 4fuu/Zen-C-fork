@@ -2335,7 +2335,7 @@ ASTNode *parse_expr_prec(ParserContext *ctx, Lexer *l, Precedence min_prec)
                 call->type_info = type_new(TYPE_INT);
 
                 ASTNode *fmt_node = ast_create(NODE_EXPR_LITERAL);
-                fmt_node->literal.type_kind = 2;
+                fmt_node->literal.type_kind = TOK_STRING;
                 fmt_node->literal.string_val = xstrdup(fmt);
                 ASTNode *head = fmt_node, *tail = fmt_node;
 

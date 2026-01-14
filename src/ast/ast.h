@@ -54,7 +54,8 @@ typedef struct Type
     struct Type **args; // For GENERIC args.
     int arg_count;
     int is_const;
-    union {
+    union
+    {
         int array_size;  // For fixed-size arrays [T; N].
         int is_varargs;  // For function types (...).
         int is_restrict; // For restrict pointers.

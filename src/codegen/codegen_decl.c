@@ -93,11 +93,18 @@ void emit_preamble(ParserContext *ctx, FILE *out)
               "\"Assertion failed: \" "
               "__VA_ARGS__); exit(1); }\n",
               out);
-        fputs("string _z_readln_raw() { char *line = NULL; size_t len = 0; "
-              "if(getline(&line, &len, "
-              "stdin) == -1) return NULL; if(strlen(line) > 0 && "
-              "line[strlen(line)-1] == '\\n') "
-              "line[strlen(line)-1] = 0; return line; }\n",
+        fputs("string _z_readln_raw() { "
+              "size_t cap = 64; size_t len = 0; "
+              "char *line = z_malloc(cap); "
+              "if(!line) return NULL; "
+              "int c; "
+              "while((c = fgetc(stdin)) != EOF) { "
+              "if(c == '\\n') break; "
+              "if(len + 1 >= cap) { cap *= 2; char *n = z_realloc(line, cap); "
+              "if(!n) { z_free(line); return NULL; } line = n; } "
+              "line[len++] = c; } "
+              "if(len == 0 && c == EOF) { z_free(line); return NULL; } "
+              "line[len] = 0; return line; }\n",
               out);
         fputs("int _z_scan_helper(const char *fmt, ...) { char *l = "
               "_z_readln_raw(); if(!l) return "
