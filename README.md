@@ -247,6 +247,7 @@ unless is_valid { return; }
 | `+`, `-`, `*`, `/`, `%` | Arithmetic | `add`, `sub`, `mul`, `div`, `rem` |
 | `==`, `!=`, `<`, `>` | Comparison | `eq`, `neq`, `lt`, `gt` |
 | `[]` | Indexing | `get`, `set` |
+| `\|>` | Pipeline (`x \|> f(y)` -> `f(x, y)`) | - |
 | `??` | Null Coalescing (`val ?? default`) | - |
 | `??=` | Null Assignment (`val ??= init`) | - |
 | `?.` | Safe Navigation (`ptr?.field`) | - |
