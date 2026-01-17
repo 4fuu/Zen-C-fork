@@ -2,7 +2,7 @@
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 DATADIR = $(PREFIX)/share/zc
-MANDIR = $(PREFIX)/share/man/man1
+MANDIR = $(PREFIX)/share/man
 
 # Compiler configuration
 # Default: gcc
@@ -34,19 +34,19 @@ SRCS = src/main.c \
        src/zen/zen_facts.c \
        src/repl/repl.c \
        src/plugins/plugin_manager.c \
-       src/compat/compat_posix.c \
-       plugins/befunge.c \
-       plugins/brainfuck.c \
-       plugins/forth.c \
-       plugins/lisp.c \
-       plugins/regex.c \
-       plugins/sql.c
+       src/compat/compat_posix.c
 
 OBJ_DIR = obj
 OBJS = $(patsubst %.c, $(OBJ_DIR)/%.o, $(SRCS))
 
+PLUGINS = plugins/befunge.so plugins/brainfuck.so plugins/forth.so plugins/lisp.so plugins/regex.so plugins/sql.so
+
 # Default target
-all: $(TARGET)
+all: $(TARGET) $(PLUGINS)
+
+# Build plugins
+plugins/%.so: plugins/%.c
+	$(CC) $(CFLAGS) -shared -fPIC -o $@ $<
 
 # Link
 $(TARGET): $(OBJS)
@@ -63,24 +63,38 @@ $(OBJ_DIR)/%.o: %.c
 install: $(TARGET)
 	install -d $(BINDIR)
 	install -m 755 $(TARGET) $(BINDIR)/$(TARGET)
+	
+	# Install man pages
+	install -d $(MANDIR)/man1 $(MANDIR)/man5 $(MANDIR)/man7
+	test -f man/zc.1 && install -m 644 man/zc.1 $(MANDIR)/man1/zc.1 || true
+	test -f man/zc.5 && install -m 644 man/zc.5 $(MANDIR)/man5/zc.5 || true
+	test -f man/zc.7 && install -m 644 man/zc.7 $(MANDIR)/man7/zc.7 || true
+	
+	# Install standard library
 	install -d $(DATADIR)/std
 	install -m 644 std.zc $(DATADIR)/
-	install -m 644 std/*.zc std/*.h $(DATADIR)/std/
-	install -d $(MANDIR)
-	test -f man/zc.1 && install -m 644 man/zc.1 $(MANDIR)/zc.1 || true
+	install -m 644 std/*.zc $(DATADIR)/std/ 2>/dev/null || true
+	install -m 644 std/*.h $(DATADIR)/std/ 2>/dev/null || true
+	
+	# Install plugin headers
+	install -d $(DATADIR)/include
+	install -m 644 plugins/zprep_plugin.h $(DATADIR)/include/zprep_plugin.h
 	@echo "=> Installed to $(BINDIR)/$(TARGET)"
+	@echo "=> Man pages installed to $(MANDIR)"
 	@echo "=> Standard library installed to $(DATADIR)/"
 
 # Uninstall
 uninstall:
 	rm -f $(BINDIR)/$(TARGET)
+	rm -f $(MANDIR)/man1/zc.1
+	rm -f $(MANDIR)/man5/zc.5
+	rm -f $(MANDIR)/man7/zc.7
 	rm -rf $(DATADIR)
-	rm -f $(MANDIR)/zc.1
 	@echo "=> Uninstalled $(TARGET)"
 
 # Clean
 clean:
-	rm -rf $(OBJ_DIR) $(TARGET) out.c
+	rm -rf $(OBJ_DIR) $(TARGET) out.c plugins/*.so
 	@echo "=> Clean complete!"
 
 # Test

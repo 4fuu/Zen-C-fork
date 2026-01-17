@@ -10,9 +10,8 @@ void zptr_plugin_mgr_init(void);
 void zptr_register_plugin(ZPlugin *plugin);
 
 // Load a plugin from a shared object file (.so).
-// Returns 1 on success, 0 on failure.
-// Yeah, for now, I'm sorry Windows guys.
-int zptr_load_plugin(const char *path);
+// Returns ZPlugin pointer on success, NULL on failure.
+ZPlugin *zptr_load_plugin(const char *path);
 
 // Find a registered plugin by name.
 ZPlugin *zptr_find_plugin(const char *name);

@@ -1,0 +1,27 @@
+
+test "test_labeled_break" -> int {
+    // Test basic goto-based loop exit
+    var result = 0;
+    
+    for i in 0..10 {
+        for j in 0..10 {
+            if i == 3 {
+                goto done_search;
+            }
+        }
+        result++;
+    }
+done_search:
+    
+    assert result == 3;
+    
+    // Test do-while
+    var x = 0;
+    do {
+        x++;
+    } while x < 3;
+    
+    assert x == 3;
+    
+    
+}

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void emit_match_logic(const char *pattern, FILE *out, int *label_counter);
+static void emit_match_logic(const char *pattern, FILE *out);
 
 void regex_transpile(const char *input_body, const ZApi *api)
 {
@@ -36,8 +36,7 @@ void regex_transpile(const char *input_body, const ZApi *api)
     fprintf(target, "    if (!text) return 0;\n");
     fprintf(target, "    const char *c = text;\n");
 
-    int label_id = 0;
-    emit_match_logic(pattern, target, &label_id);
+    emit_match_logic(pattern, target);
 
     fprintf(target, "    return 1;\n");
     fprintf(target, "}\n");
@@ -47,9 +46,8 @@ void regex_transpile(const char *input_body, const ZApi *api)
     free(pattern);
 }
 
-static void emit_match_logic(const char *pattern, FILE *out, int *label_counter)
+static void emit_match_logic(const char *pattern, FILE *out)
 {
-    (void)label_counter;
     const char *c = pattern;
 
     while (*c)
@@ -226,3 +224,8 @@ static void emit_match_logic(const char *pattern, FILE *out, int *label_counter)
 }
 
 ZPlugin regex_plugin = {.name = "regex", .fn = regex_transpile};
+
+ZPlugin *z_plugin_init(void)
+{
+    return &regex_plugin;
+}

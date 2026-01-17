@@ -108,6 +108,7 @@ void zwarn(const char *fmt, ...)
     {
         return;
     }
+    g_warning_count++;
     va_list a;
     va_start(a, fmt);
     fprintf(stderr, COLOR_YELLOW "warning: " COLOR_RESET COLOR_BOLD);
@@ -123,6 +124,7 @@ void zwarn_at(Token t, const char *fmt, ...)
         return;
     }
     // Header: 'warning: message'.
+    g_warning_count++;
     va_list a;
     va_start(a, fmt);
     fprintf(stderr, COLOR_YELLOW "warning: " COLOR_RESET COLOR_BOLD);
@@ -491,6 +493,29 @@ char *load_file(const char *fn)
     FILE *f = fopen(fn, "rb");
     if (!f)
     {
+        char *root = getenv("ZC_ROOT");
+        if (root)
+        {
+            char path[1024];
+            snprintf(path, sizeof(path), "%s/%s", root, fn);
+            f = fopen(path, "rb");
+        }
+    }
+    if (!f)
+    {
+        char path[1024];
+        snprintf(path, sizeof(path), "/usr/local/share/zenc/%s", fn);
+        f = fopen(path, "rb");
+    }
+    if (!f)
+    {
+        char path[1024];
+        snprintf(path, sizeof(path), "/usr/share/zenc/%s", fn);
+        f = fopen(path, "rb");
+    }
+
+    if (!f)
+    {
         return 0;
     }
     fseek(f, 0, SEEK_END);
@@ -506,6 +531,7 @@ char *load_file(const char *fn)
 // ** Build Directives **
 char g_link_flags[MAX_FLAGS_SIZE] = "";
 char g_cflags[MAX_FLAGS_SIZE] = "";
+int g_warning_count = 0;
 CompilerConfig g_config = {0};
 
 void scan_build_directives(ParserContext *ctx, const char *src)
@@ -539,7 +565,10 @@ void scan_build_directives(ParserContext *ctx, const char *src)
             if (0 == strncmp(line, "link:", 5))
             {
                 char *val = line + 5;
-                while (*val == ' ') val++;
+                while (*val == ' ')
+                {
+                    val++;
+                }
                 if (strlen(g_link_flags) > 0)
                 {
                     strcat(g_link_flags, " ");
@@ -549,7 +578,10 @@ void scan_build_directives(ParserContext *ctx, const char *src)
             else if (0 == strncmp(line, "cflags:", 7))
             {
                 char *val = line + 7;
-                while (*val == ' ') val++;
+                while (*val == ' ')
+                {
+                    val++;
+                }
                 if (strlen(g_cflags) > 0)
                 {
                     strcat(g_cflags, " ");
@@ -559,7 +591,10 @@ void scan_build_directives(ParserContext *ctx, const char *src)
             else if (0 == strncmp(line, "include:", 8))
             {
                 char *val = line + 8;
-                while (*val == ' ') val++;
+                while (*val == ' ')
+                {
+                    val++;
+                }
                 char flags[2048];
                 sprintf(flags, "-I%s", val);
                 if (strlen(g_cflags) > 0)
@@ -571,7 +606,10 @@ void scan_build_directives(ParserContext *ctx, const char *src)
             else if (strncmp(line, "lib:", 4) == 0)
             {
                 char *val = line + 4;
-                while (*val == ' ') val++;
+                while (*val == ' ')
+                {
+                    val++;
+                }
                 char flags[2048];
                 sprintf(flags, "-L%s", val);
                 if (strlen(g_link_flags) > 0)
@@ -583,7 +621,10 @@ void scan_build_directives(ParserContext *ctx, const char *src)
             else if (strncmp(line, "define:", 7) == 0)
             {
                 char *val = line + 7;
-                while (*val == ' ') val++;
+                while (*val == ' ')
+                {
+                    val++;
+                }
                 char flags[2048];
                 sprintf(flags, "-D%s", val);
                 if (strlen(g_cflags) > 0)

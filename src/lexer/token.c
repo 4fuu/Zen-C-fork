@@ -82,6 +82,41 @@ Token lexer_next(Lexer *l)
         return lexer_next(l);
     }
 
+    // Block Comments.
+    if (s[0] == '/' && s[1] == '*')
+    {
+        // skip two start chars
+        l->pos += 2;
+        s += 2;
+
+        while (s[0])
+        {
+            // s[len+1] can be at most the null terminator
+            if (s[0] == '*' && s[1] == '/')
+            {
+                // go over */
+                l->pos += 2;
+                s += 2;
+                break;
+            }
+
+            if (s[0] == '\n')
+            {
+                l->line++;
+                l->col = 1;
+            }
+            else
+            {
+                l->col++;
+            }
+
+            l->pos++;
+            s++;
+        }
+
+        return lexer_next(l);
+    }
+
     // Identifiers.
     if (is_ident_start(*s))
     {
@@ -114,9 +149,9 @@ Token lexer_next(Lexer *l)
         {
             return (Token){TOK_AUTOFREE, s, 8, start_line, start_col};
         }
-        if (len == 3 && strncmp(s, "use", 3) == 0)
+        if (len == 5 && strncmp(s, "alias", 5) == 0)
         {
-            return (Token){TOK_USE, s, 3, start_line, start_col};
+            return (Token){TOK_ALIAS, s, 5, start_line, start_col};
         }
         if (len == 3 && strncmp(s, "use", 3) == 0)
         {

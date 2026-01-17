@@ -1,0 +1,18 @@
+test "test_implicit_return" {
+    // Adds newline
+    "Hello Implicit"; 
+
+    // Adds newline
+    println "Hello Explicit";
+
+    // No newline
+    print "Loading";
+    print ".";
+    print ".";
+    println " Done!";
+    
+    // With variables
+    var x = 42;
+    print "Value is: ";
+    println "{x}";
+}

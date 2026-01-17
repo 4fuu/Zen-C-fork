@@ -15,7 +15,6 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
     {
         skip_comments(l);
         Token t = lexer_peek(l);
-
         if (t.type == TOK_EOF)
         {
             break;
@@ -76,7 +75,7 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
             Token attr = lexer_next(l);
             if (attr.type != TOK_IDENT && attr.type != TOK_COMPTIME)
             {
-                zpanic("Expected attribute name after @");
+                zpanic_at(attr, "Expected attribute name after @");
             }
 
             if (0 == strncmp(attr.start, "must_use", 8) && 8 == attr.len)
@@ -98,7 +97,7 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                     }
                     if (lexer_next(l).type != TOK_RPAREN)
                     {
-                        zpanic("Expected ) after deprecated message");
+                        zpanic_at(lexer_peek(l), "Expected ) after deprecated message");
                     }
                 }
             }
@@ -164,12 +163,12 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                     }
                     if (lexer_next(l).type != TOK_RPAREN)
                     {
-                        zpanic("Expected ) after section name");
+                        zpanic_at(lexer_peek(l), "Expected ) after section name");
                     }
                 }
                 else
                 {
-                    zpanic("@section requires a name: @section(\"name\")");
+                    zpanic_at(lexer_peek(l), "@section requires a name: @section(\"name\")");
                 }
             }
             else if (0 == strncmp(attr.start, "packed", 6) && 6 == attr.len)
@@ -188,12 +187,12 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                     }
                     if (lexer_next(l).type != TOK_RPAREN)
                     {
-                        zpanic("Expected ) after align value");
+                        zpanic_at(lexer_peek(l), "Expected ) after align value");
                     }
                 }
                 else
                 {
-                    zpanic("@align requires a value: @align(N)");
+                    zpanic_at(lexer_peek(l), "@align requires a value: @align(N)");
                 }
             }
             else if (0 == strncmp(attr.start, "derive", 6) && 6 == attr.len)
@@ -206,7 +205,7 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                         Token t = lexer_next(l);
                         if (t.type != TOK_IDENT)
                         {
-                            zpanic("Expected trait name in @derive");
+                            zpanic_at(t, "Expected trait name in @derive");
                         }
                         if (derived_count < 32)
                         {
@@ -223,12 +222,12 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                     }
                     if (lexer_next(l).type != TOK_RPAREN)
                     {
-                        zpanic("Expected ) after derive traits");
+                        zpanic_at(lexer_peek(l), "Expected ) after derive traits");
                     }
                 }
                 else
                 {
-                    zpanic("@derive requires traits: @derive(Debug, Clone)");
+                    zpanic_at(lexer_peek(l), "@derive requires traits: @derive(Debug, Clone)");
                 }
             }
             else
@@ -372,7 +371,7 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                 lexer_next(l);
                 if (lexer_peek(l).type != TOK_LBRACE)
                 {
-                    zpanic("Expected { after raw");
+                    zpanic_at(lexer_peek(l), "Expected { after raw");
                 }
                 lexer_next(l);
 
@@ -384,7 +383,7 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
                     Token t = lexer_next(l);
                     if (t.type == TOK_EOF)
                     {
-                        zpanic("Unexpected EOF in raw block");
+                        zpanic_at(t, "Unexpected EOF in raw block");
                     }
                     if (t.type == TOK_LBRACE)
                     {
@@ -410,6 +409,10 @@ ASTNode *parse_program_nodes(ParserContext *ctx, Lexer *l)
             {
                 lexer_next(l);
             }
+        }
+        else if (t.type == TOK_ALIAS)
+        {
+            s = parse_type_alias(ctx, l);
         }
         else if (t.type == TOK_ASYNC)
         {
@@ -566,7 +569,7 @@ static ASTNode *generate_derive_impls(ParserContext *ctx, ASTNode *strct, char *
                         else if (fdef && fdef->type == NODE_STRUCT)
                         {
                             // Struct field: use _eq function
-                            sprintf(cmp, "%s_eq(&self.%s, other.%s)", ft, fn, fn);
+                            sprintf(cmp, "%s__eq(&self.%s, other.%s)", ft, fn, fn);
                         }
                         else
                         {

@@ -1,0 +1,47 @@
+include <stdio.h>
+
+@must_use
+fn compute() -> int {
+    return 42;
+}
+
+@deprecated("Use new_version instead")
+fn old_function() {
+    "deprecated!";
+}
+
+@inline
+fn fast_add(a: int, b: int) -> int {
+    return a + b;
+}
+
+@must_use @inline
+fn combined() -> int {
+    return 100;
+}
+
+fn optional_result() -> int {
+    return 1;
+}
+
+test "attributes" {
+    // This should NOT warn (result used)
+    var x = compute();
+    assert(x == 42, "compute() should return 42");
+    
+    // This should NOT warn (no must_use attribute)
+    optional_result();
+    
+    // This SHOULD warn (result discarded on must_use function)
+    compute();
+    
+    // Test inline works
+    var sum = fast_add(1, 2);
+    assert(sum == 3, "inline add failed");
+    
+    // Combined attributes
+    var c = combined();
+    assert(c == 100, "combined failed");
+    
+    "Attributes test completed";
+}

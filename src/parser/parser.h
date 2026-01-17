@@ -116,6 +116,7 @@ typedef struct Instantiation
     char *name;
     char *template_name;
     char *concrete_arg;
+    char *unmangled_arg; // For code substitution (e.g. "struct T*")
     ASTNode *struct_node;
     struct Instantiation *next;
 } Instantiation;
@@ -197,6 +198,13 @@ typedef struct ImportedPlugin
     struct ImportedPlugin *next;
 } ImportedPlugin;
 
+typedef struct TypeAlias
+{
+    char *alias;
+    char *original_type;
+    struct TypeAlias *next;
+} TypeAlias;
+
 struct ParserContext
 {
     Scope *current_scope;
@@ -232,6 +240,7 @@ struct ParserContext
     // Types
     SliceType *used_slices;
     TupleType *used_tuples;
+    TypeAlias *type_aliases;
 
     // Modules/Imports
     Module *modules;
@@ -265,6 +274,7 @@ struct ParserContext
     FILE *hoist_out;   // For plugins to hoist code to file scope
     int skip_preamble; // If 1, codegen_node(NODE_ROOT) won't emit preamble
     int is_repl;       // REPL mode flag
+    int has_async;     // Track if async features are used
 };
 
 // Token helpers
@@ -311,8 +321,13 @@ void add_to_impl_list(ParserContext *ctx, ASTNode *node);
 void add_to_global_list(ParserContext *ctx, ASTNode *node);
 void register_builtins(ParserContext *ctx);
 void add_instantiated_func(ParserContext *ctx, ASTNode *fn);
-void instantiate_generic(ParserContext *ctx, const char *name, const char *concrete_type);
-char *sanitize_mangled_name(const char *s);
+void instantiate_generic(ParserContext *ctx, const char *name, const char *concrete_type,
+                         const char *unmangled_type, Token t);
+void instantiate_generic_multi(ParserContext *ctx, const char *name, char **args, int arg_count,
+                               Token t);
+char *sanitize_mangled_name(const char *name);
+void register_type_alias(ParserContext *ctx, const char *alias, const char *original);
+const char *find_type_alias(ParserContext *ctx, const char *alias);
 void register_impl(ParserContext *ctx, const char *trait, const char *strct);
 int check_impl(ParserContext *ctx, const char *trait, const char *strct);
 void register_template(ParserContext *ctx, const char *name, ASTNode *node);
@@ -376,9 +391,9 @@ void init_builtins();
 
 // Expression rewriting
 char *rewrite_expr_methods(ParserContext *ctx, char *raw);
-char *process_fstring(ParserContext *ctx, const char *content);
-char *instantiate_function_template(ParserContext *ctx, const char *name,
-                                    const char *concrete_type);
+char *process_fstring(ParserContext *ctx, const char *content, char ***used_syms, int *count);
+char *instantiate_function_template(ParserContext *ctx, const char *name, const char *concrete_type,
+                                    const char *unmangled_type);
 FuncSig *find_func(ParserContext *ctx, const char *name);
 
 Type *parse_type_formal(ParserContext *ctx, Lexer *l);
@@ -408,8 +423,8 @@ ASTNode *parse_guard(ParserContext *ctx, Lexer *l);
 ASTNode *parse_match(ParserContext *ctx, Lexer *l);
 ASTNode *parse_return(ParserContext *ctx, Lexer *l);
 
-char *process_printf_sugar(ParserContext *ctx, const char *content, int newline,
-                           const char *target);
+char *process_printf_sugar(ParserContext *ctx, const char *content, int newline, const char *target,
+                           char ***used_syms, int *count);
 ASTNode *parse_assert(ParserContext *ctx, Lexer *l);
 ASTNode *parse_defer(ParserContext *ctx, Lexer *l);
 ASTNode *parse_asm(ParserContext *ctx, Lexer *l);

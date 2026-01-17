@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// **ZEN VERSION**
+#define ZEN_VERSION "0.1.0"
+
 // ** ANSI COLORS **
 #define COLOR_RESET "\033[0m"
 #define COLOR_RED "\033[1;31m"
@@ -76,6 +79,7 @@ typedef enum ZTokenType
     TOK_ASYNC,
     TOK_AWAIT,
     TOK_PREPROC,
+    TOK_ALIAS,
     TOK_COMMENT,
     TOK_UNKNOWN
 } ZTokenType;
@@ -132,6 +136,7 @@ const char *zc_get_std_path(void);
 // ** Build Directives **
 extern char g_link_flags[MAX_FLAGS_SIZE];
 extern char g_cflags[MAX_FLAGS_SIZE];
+extern int g_warning_count;
 
 struct ParserContext;
 

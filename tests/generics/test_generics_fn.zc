@@ -1,0 +1,25 @@
+
+fn identity<T>(x: T) -> T {
+    return x;
+}
+
+struct Box<T> {
+    val: T;
+}
+
+// Generic Impl
+impl Box<T> {
+    fn get(self) -> T {
+        return self.val;
+    }
+}
+
+test "Generics" {
+    // Generic Function
+    var i = identity<int>(42);
+    assert(i == 42, "Generic function failed");
+
+    // Generic Struct & Impl
+    var b = Box<int> { val: 100 };
+    assert(b.get() == 100, "Generic impl failed");
+}

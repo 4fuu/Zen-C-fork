@@ -1,0 +1,78 @@
+
+fn apply_twice(f: fn(I32) -> I32, x: I32) -> I32 {
+    return f(f(x));
+}
+
+fn make_adder(n: I32) -> fn(I32) -> I32 {
+    // Returns a lambda that captures 'n'
+    return x -> x + n;
+}
+
+test "test_complex_lambdas" {
+    println "Testing complex lambda scenarios...";
+    
+    // Lambda with multiple parameters
+    var add_three = (a, b, c) -> a + b + c;
+    var res1 = add_three(1, 2, 3);
+    if (res1 == 6) {
+        println "  -> Multi-param lambda: Passed";
+    } else {
+        println "  -> Multi-param lambda: Failed";
+        exit(1);
+    }
+    
+    // Higher-order function
+    var res2 = apply_twice(x -> x * 2, 5);
+    if (res2 == 20) {
+        println "  -> Higher-order function: Passed";
+    } else {
+        println "  -> Higher-order function: Failed";
+        exit(1);
+    }
+    
+    // Returning a lambda (closure)
+    var add10 = make_adder(10);
+    var res3 = add10(5);
+    if (res3 == 15) {
+        println "  -> Returned lambda: Passed";
+    } else {
+        println "  -> Returned lambda: Failed";
+        exit(1);
+    }
+    
+    // Lambda composition
+    var doubler = x -> x * 2;
+    var add5 = x -> x + 5;
+    var res4 = add5(doubler(10));
+    if (res4 == 25) {
+        println "  -> Lambda composition: Passed";
+    } else {
+        println "  -> Lambda composition: Failed";
+        exit(1);
+    }
+    
+    // Nested application
+    var res5 = apply_twice(x -> x + 1, apply_twice(x -> x * 2, 3));
+    // (3 * 2) * 2 = 12, then (12 + 1) + 1 = 14
+    if (res5 == 14) {
+        println "  -> Nested application: Passed";
+    } else {
+        println "  -> Nested application: Failed";
+        exit(1);
+    }
+    
+    println "All complex lambda tests passed!";
+    
+
+}
+
+test "test_basic_closure" {
+    var whatever = 10;
+    var closure: fn(I32) -> I32 = x -> x + whatever;
+    var res = closure(5);
+    // "Result: {res}";
+    if (res != 15) {
+        println "Closure failed: expected 15, got {res}";
+        exit(1);
+    }
+}

@@ -1,0 +1,231 @@
+.TH ZENC 7 "2026-01-15" "Zen C 0.1.0" "Miscellaneous"
+.SH NAME
+zenc \- Zen C language conventions and overview
+.SH DESCRIPTION
+Zen C is a modern systems programming language that compiles to C11. It combines
+high-level ergonomics with zero runtime overhead. This manual describes the
+language semantics, type system, and programming conventions.
+.SH TYPE SYSTEM
+.SS Primitive Types
+.TS
+tab(|);
+l l l.
+Type|C Equivalent|Description
+_
+int, uint|int, unsigned int|Platform integer
+i8..i128|int8_t..__int128_t|Fixed-width signed
+u8..u128|uint8_t..__uint128_t|Fixed-width unsigned
+isize, usize|ptrdiff_t, size_t|Pointer-sized
+f32, f64|float, double|Floating point
+bool|bool|Boolean (true/false)
+char|char|Single character
+string|char*|Null-terminated string
+void|void|Empty type
+.TE
+.SS Aggregate Types
+.TP
+.B Arrays
+Fixed-size with value semantics:
+.BR "int[5]" ", " "[int; 5]"
+.TP
+.B Tuples
+Anonymous product types:
+.B "(int, string)"
+.TP
+.B Structs
+Named record types with fields
+.TP
+.B Enums
+Tagged unions (sum types) with data
+.TP
+.B Unions
+Untagged unions (unsafe)
+.SH MEMORY MANAGEMENT
+.SS Manual Memory
+.PP
+Zen C provides manual memory management with ergonomic helpers:
+.TP
+.B defer statement
+Execute code when scope exits
+.TP
+.B autofree modifier
+Automatically free variable on scope exit
+.TP
+.B Drop trait
+Implement custom cleanup logic (RAII pattern)
+.SS Example
+.nf
+fn process_file() {
+    var f = fopen("data.txt", "r");
+    defer fclose(f);  // Automatic cleanup
+    
+    autofree var buffer = malloc(1024);
+    // ...
+} // buffer freed, file closed automatically
+.fi
+.SH CONTROL FLOW
+.SS Pattern Matching
+.PP
+Zen C provides exhaustive pattern matching via
+.BR match :
+.PP
+.nf
+match value {
+    1 => action1(),
+    2 | 3 => action2(),
+    4..10 => action_range(),
+    _ => default_action()
+}
+.fi
+.SS Loops
+.TP
+.BI "for " "i in 0..10"
+Range-based iteration
+.TP
+.BI "for " "item in collection"
+Iterator-based loop
+.TP
+.B while condition
+Conditional loop
+.TP
+.B loop
+Infinite loop (use
+.B break
+to exit)
+.TP
+.BI "repeat " "n"
+Execute block n times
+.SS Advanced Control
+.TP
+.B guard condition else { ... }
+Early return if condition false
+.TP
+.B unless condition { ... }
+Execute if condition false
+.SH OPERATORS
+.SS Null-Safety Operators
+.TP
+.B ??
+Null coalescing:
+.B "val ?? default"
+.TP
+.B ??=
+Null assignment:
+.B "val ??= init"
+.TP
+.B ?.
+Safe navigation:
+.B "ptr?.field"
+.TP
+.B ?
+Try operator: propagate errors
+.SH GENERICS AND TRAITS
+.SS Generic Types
+.PP
+.nf
+struct Box<T> {
+    item: T;
+}
+
+fn identity<T>(val: T) -> T {
+    return val;
+}
+.fi
+.SS Traits
+.PP
+Define shared behavior:
+.PP
+.nf
+trait Drawable {
+    fn draw(self);
+}
+
+impl Drawable for Circle {
+    fn draw(self) {
+        // implementation
+    }
+}
+.fi
+.SH CONCURRENCY
+Zen C provides async/await built on pthreads:
+.PP
+.nf
+async fn fetch() -> string {
+    // Background execution
+    return "data";
+}
+
+fn main() {
+    var future = fetch();
+    var result = await future;
+}
+.fi
+.SH METAPROGRAMMING
+.SS Compile-Time Execution
+.TP
+.B comptime { ... }
+Execute code at compile time
+.TP
+.BI "embed " \[dq]file\[dq]
+Embed file as byte array
+.TP
+.BI "import plugin " \[dq]name\[dq]
+Load compiler plugin
+.SS Attributes
+.PP
+Modify compiler behavior:
+.BR @must_use ", " @inline ", " @packed ", " @deprecated
+.SH INLINE ASSEMBLY
+Zen C supports GCC-style inline assembly with simplified syntax:
+.PP
+.nf
+fn atomic_add(a: int, b: int) -> int {
+    var result: int;
+    asm {
+        "add {result}, {a}, {b}"
+        : out(result)
+        : in(a), in(b)
+        : clobber("cc")
+    }
+    return result;
+}
+.fi
+.SH COMPILER COMPATIBILITY
+.TS
+tab(|);
+l c l.
+Compiler|Support|Notes
+_
+GCC|100%|Full feature support
+Clang|100%|Full feature support
+Zig cc|100%|via zig cc wrapper
+TCC|~70%|Missing nested functions, __auto_type
+.TE
+.SH EXAMPLES
+.SS Hello World
+.nf
+fn main() {
+    println "Hello, World!";
+}
+.fi
+.SS Generic Vector
+.nf
+import "std/vec.zc"
+
+fn main() {
+    var nums = Vec<int>::new();
+    nums.push(42);
+    nums.push(100);
+    println "{nums.length()} items";
+}
+.fi
+.SH FILES
+.TP
+.I /usr/share/zenc/std/
+Standard library location
+.SH SEE ALSO
+.BR zc (1),
+.BR zc (5),
+.BR gcc (1)
+.SH STANDARDS
+Zen C targets C11 with GNU extensions. Generated code is ABI-compatible with C.

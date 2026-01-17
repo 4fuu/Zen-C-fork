@@ -1,0 +1,91 @@
+
+fn classify_number(n: int) -> int {
+    match n {
+        0 => { return 100; },
+        1 => { return 200; },
+        2 => { return 300; },
+        _ => { return -1; }
+    }
+}
+
+fn get_sign(n: int) -> string {
+    match n {
+        0 => { return "zero"; },
+        _ => {
+            if (n > 0) {
+                return "positive";
+            }
+            return "negative";
+        }
+    }
+}
+
+test "test_match" {
+    println "Testing match expressions...";
+    
+    // Match with exact value (0)
+    var res1 = classify_number(0);
+    if (res1 == 100) {
+        println "  -> match 0: Passed";
+    } else {
+        println "  -> match 0: Failed";
+        exit(1);
+    }
+    
+    // Match with exact value (1)
+    var res2 = classify_number(1);
+    if (res2 == 200) {
+        println "  -> match 1: Passed";
+    } else {
+        println "  -> match 1: Failed";
+        exit(1);
+    }
+    
+    // Match with exact value (2)
+    var res3 = classify_number(2);
+    if (res3 == 300) {
+        println "  -> match 2: Passed";
+    } else {
+        println "  -> match 2: Failed";
+        exit(1);
+    }
+    
+    // Match with default case
+    var res4 = classify_number(99);
+    if (res4 == -1) {
+        println "  -> match default: Passed";
+    } else {
+        println "  -> match default: Failed";
+        exit(1);
+    }
+    
+    // Match with complex body (zero)
+    var sign1 = get_sign(0);
+    if (strcmp(sign1, "zero") == 0) {
+        println "  -> match complex (zero): Passed";
+    } else {
+        println "  -> match complex (zero): Failed";
+        exit(1);
+    }
+    
+    // Match with complex body (positive)
+    var sign2 = get_sign(42);
+    if (strcmp(sign2, "positive") == 0) {
+        println "  -> match complex (positive): Passed";
+    } else {
+        println "  -> match complex (positive): Failed";
+        exit(1);
+    }
+    
+    // Match with complex body (negative)
+    var sign3 = get_sign(-10);
+    if (strcmp(sign3, "negative") == 0) {
+        println "  -> match complex (negative): Passed";
+    } else {
+        println "  -> match complex (negative): Failed";
+        exit(1);
+    }
+    
+    println "All match tests passed!";
+    
+}

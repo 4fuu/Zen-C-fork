@@ -26,10 +26,11 @@ struct JsonValue {
 }
 
 raw {
-    Vec_JsonValuePtr Vec_JsonValuePtr_new();
-    void Vec_JsonValuePtr_push(Vec_JsonValuePtr* self, JsonValue* item);
-    Map_JsonValuePtr Map_JsonValuePtr_new();
-    void Map_JsonValuePtr_put(Map_JsonValuePtr* self, char* key, JsonValue* val);
+    typedef struct JsonValue* JsonValuePtr;
+    Vec_JsonValuePtr Vec_JsonValuePtr__new();
+    void Vec_JsonValuePtr__push(Vec_JsonValuePtr* self, JsonValue* item);
+    Map_JsonValuePtr Map_JsonValuePtr__new();
+    void Map_JsonValuePtr__put(Map_JsonValuePtr* self, char* key, JsonValue* val);
     
     static void _json_skip_ws(const char** p) {
         while (**p == ' ' || **p == '\t' || **p == '\n' || **p == '\r') (*p)++;
@@ -68,7 +69,7 @@ raw {
         arr->kind = JsonType_JSON_ARRAY();
         arr->string_val = 0; arr->number_val = 0; arr->bool_val = 0; arr->object_val = 0;
         arr->array_val = malloc(sizeof(Vec_JsonValuePtr));
-        *(arr->array_val) = Vec_JsonValuePtr_new();
+        *(arr->array_val) = Vec_JsonValuePtr__new();
         
         _json_skip_ws(p);
         if (**p == ']') { (*p)++; return arr; }
@@ -77,7 +78,7 @@ raw {
             _json_skip_ws(p);
             struct JsonValue* val = _json_parse_value(p);
             if (!val) return NULL;
-            Vec_JsonValuePtr_push(arr->array_val, val);
+            Vec_JsonValuePtr__push(arr->array_val, val);
             _json_skip_ws(p);
             if (**p == ']') { (*p)++; return arr; }
             if (**p != ',') return NULL;
@@ -92,7 +93,7 @@ raw {
         obj->kind = JsonType_JSON_OBJECT();
         obj->string_val = 0; obj->number_val = 0; obj->bool_val = 0; obj->array_val = 0;
         obj->object_val = malloc(sizeof(Map_JsonValuePtr));
-        *(obj->object_val) = Map_JsonValuePtr_new();
+        *(obj->object_val) = Map_JsonValuePtr__new();
         
         _json_skip_ws(p);
         if (**p == '}') { (*p)++; return obj; }
@@ -107,7 +108,7 @@ raw {
             _json_skip_ws(p);
             struct JsonValue* val = _json_parse_value(p);
             if (!val) { free(key); return NULL; }
-            Map_JsonValuePtr_put(obj->object_val, key, val);
+            Map_JsonValuePtr__put(obj->object_val, key, val);
             free(key);
             _json_skip_ws(p);
             if (**p == '}') { (*p)++; return obj; }

@@ -1,0 +1,22 @@
+//> cflags: -masm=intel
+
+fn add_five_intel(x: int) -> int {
+    var result: int;
+    asm {
+        "mov {result}, {x}"
+        "add {result}, 5"
+        : out(result)
+        : in(x)
+    }
+    return result;
+}
+
+test "test_intel" {
+    var val = add_five_intel(10);
+    "Sum Intel: 10 + 5 = {val}";
+
+    match val {
+        15 => printf("-> Success!\n")
+        _  => printf("-> Failed: expected 15, got {val}\n")
+    }   
+}

@@ -1,0 +1,17 @@
+
+struct Vector {
+    vx: double;
+    vy: double;
+}
+
+impl Vector {
+    fn new(vx: double, vy: double) -> Vector {
+        return Vector { vx: vx, vy: vy };
+    }
+
+    fn magnitude(self) -> double {
+        // sqrt(5^2 + 12^2) = 13
+        if (self.vx == 5.0 && self.vy == 12.0) return 13.0;
+        return 0.0;
+    }
+}

@@ -1,5 +1,6 @@
 
 #include "../codegen/codegen.h"
+#include "../plugins/plugin_manager.h"
 #include "parser.h"
 #include <ctype.h>
 #include <stdio.h>
@@ -7,7 +8,8 @@
 #include <string.h>
 
 void instantiate_methods(ParserContext *ctx, GenericImplTemplate *it,
-                         const char *mangled_struct_name, const char *arg);
+                         const char *mangled_struct_name, const char *arg,
+                         const char *unmangled_arg);
 
 Token expect(Lexer *l, ZTokenType type, const char *msg)
 {
@@ -387,7 +389,7 @@ void register_impl_template(ParserContext *ctx, const char *sname, const char *p
     {
         if (inst->template_name && strcmp(inst->template_name, sname) == 0)
         {
-            instantiate_methods(ctx, t, inst->name, inst->concrete_arg);
+            instantiate_methods(ctx, t, inst->name, inst->concrete_arg, inst->unmangled_arg);
         }
         inst = inst->next;
     }
@@ -399,6 +401,29 @@ void add_to_struct_list(ParserContext *ctx, ASTNode *node)
     r->node = node;
     r->next = ctx->parsed_structs_list;
     ctx->parsed_structs_list = r;
+}
+
+void register_type_alias(ParserContext *ctx, const char *alias, const char *original)
+{
+    TypeAlias *ta = xmalloc(sizeof(TypeAlias));
+    ta->alias = xstrdup(alias);
+    ta->original_type = xstrdup(original);
+    ta->next = ctx->type_aliases;
+    ctx->type_aliases = ta;
+}
+
+const char *find_type_alias(ParserContext *ctx, const char *alias)
+{
+    TypeAlias *ta = ctx->type_aliases;
+    while (ta)
+    {
+        if (strcmp(ta->alias, alias) == 0)
+        {
+            return ta->original_type;
+        }
+        ta = ta->next;
+    }
+    return NULL;
 }
 
 void add_to_enum_list(ParserContext *ctx, ASTNode *node)
@@ -663,6 +688,41 @@ void register_tuple(ParserContext *ctx, const char *sig)
     n->sig = xstrdup(sig);
     n->next = ctx->used_tuples;
     ctx->used_tuples = n;
+
+    char struct_name[1024];
+    sprintf(struct_name, "Tuple_%s", sig);
+
+    ASTNode *s_def = ast_create(NODE_STRUCT);
+    s_def->strct.name = xstrdup(struct_name);
+
+    char *s_sig = xstrdup(sig);
+    char *tok = strtok(s_sig, "_");
+    ASTNode *head = NULL, *tail = NULL;
+    int i = 0;
+    while (tok)
+    {
+        ASTNode *f = ast_create(NODE_FIELD);
+        char fname[32];
+        sprintf(fname, "v%d", i++);
+        f->field.name = xstrdup(fname);
+        f->field.type = xstrdup(tok);
+
+        if (!head)
+        {
+            head = f;
+        }
+        else
+        {
+            tail->next = f;
+        }
+        tail = f;
+
+        tok = strtok(NULL, "_");
+    }
+    free(s_sig);
+    s_def->strct.fields = head;
+
+    register_struct_def(ctx, struct_name, s_def);
 }
 
 void register_struct_def(ParserContext *ctx, const char *name, ASTNode *node)
@@ -1525,7 +1585,8 @@ FuncSig *find_func(ParserContext *ctx, const char *name)
     return NULL;
 }
 
-char *instantiate_function_template(ParserContext *ctx, const char *name, const char *concrete_type)
+char *instantiate_function_template(ParserContext *ctx, const char *name, const char *concrete_type,
+                                    const char *unmangled_type)
 {
     GenericFuncTemplate *tpl = find_func_template(ctx, name);
     if (!tpl)
@@ -1543,8 +1604,8 @@ char *instantiate_function_template(ParserContext *ctx, const char *name, const 
         return mangled;
     }
 
-    ASTNode *new_fn =
-        copy_ast_replacing(tpl->func_node, tpl->generic_param, concrete_type, NULL, NULL);
+    const char *subst_arg = unmangled_type ? unmangled_type : concrete_type;
+    ASTNode *new_fn = copy_ast_replacing(tpl->func_node, tpl->generic_param, subst_arg, NULL, NULL);
     if (!new_fn || new_fn->type != NODE_FUNCTION)
     {
         return NULL;
@@ -1560,7 +1621,7 @@ char *instantiate_function_template(ParserContext *ctx, const char *name, const 
     return mangled;
 }
 
-char *process_fstring(ParserContext *ctx, const char *content)
+char *process_fstring(ParserContext *ctx, const char *content, char ***used_syms, int *count)
 {
     (void)ctx; // suppress unused parameter warning
     char *gen = xmalloc(4096);
@@ -1625,6 +1686,36 @@ char *process_fstring(ParserContext *ctx, const char *content)
         {
             *colon = 0;
             fmt = colon + 1;
+        }
+
+        // Analyze usage in expression
+        {
+            Lexer lex;
+            lexer_init(&lex, expr);
+            Token t;
+            while ((t = lexer_next(&lex)).type != TOK_EOF)
+            {
+                if (t.type == TOK_IDENT)
+                {
+                    char *name = token_strdup(t);
+                    Symbol *sym = find_symbol_entry(ctx, name);
+                    if (sym)
+                    {
+                        sym->is_used = 1;
+                    }
+
+                    if (used_syms && count)
+                    {
+                        *used_syms = xrealloc(*used_syms, sizeof(char *) * (*count + 1));
+                        (*used_syms)[*count] = name;
+                        (*count)++;
+                    }
+                    else
+                    {
+                        free(name);
+                    }
+                }
+            }
         }
 
         if (fmt)
@@ -1737,7 +1828,20 @@ ASTNode *copy_fields_replacing(ParserContext *ctx, ASTNode *fields, const char *
 
                 if (found)
                 {
-                    instantiate_generic(ctx, template_name, concrete_arg);
+                    char *unmangled = xstrdup(concrete_arg);
+                    size_t alen = strlen(concrete_arg);
+                    if (alen > 3 && strcmp(concrete_arg + alen - 3, "Ptr") == 0)
+                    {
+                        char *base = xstrdup(concrete_arg);
+                        base[alen - 3] = '\0';
+                        // heuristic: Ptr likely maps to struct T*
+                        free(unmangled);
+                        unmangled = xmalloc(strlen(base) + 16);
+                        sprintf(unmangled, "struct %s*", base);
+                        free(base);
+                    }
+                    instantiate_generic(ctx, template_name, concrete_arg, unmangled, fields->token);
+                    free(unmangled);
                 }
             }
             free(type_copy);
@@ -1749,7 +1853,8 @@ ASTNode *copy_fields_replacing(ParserContext *ctx, ASTNode *fields, const char *
 }
 
 void instantiate_methods(ParserContext *ctx, GenericImplTemplate *it,
-                         const char *mangled_struct_name, const char *arg)
+                         const char *mangled_struct_name, const char *arg,
+                         const char *unmangled_arg)
 {
     if (check_impl(ctx, "Methods", mangled_struct_name))
     {
@@ -1758,16 +1863,17 @@ void instantiate_methods(ParserContext *ctx, GenericImplTemplate *it,
 
     ASTNode *backup_next = it->impl_node->next;
     it->impl_node->next = NULL; // Break link to isolate node
-    ASTNode *new_impl = copy_ast_replacing(it->impl_node, it->generic_param, arg, it->struct_name,
-                                           mangled_struct_name);
+    const char *subst_arg = unmangled_arg ? unmangled_arg : arg;
+    ASTNode *new_impl = copy_ast_replacing(it->impl_node, it->generic_param, subst_arg,
+                                           it->struct_name, mangled_struct_name);
     it->impl_node->next = backup_next; // Restore
 
     new_impl->impl.struct_name = xstrdup(mangled_struct_name);
     ASTNode *meth = new_impl->impl.methods;
     while (meth)
     {
-        char *suffix = strchr(meth->func.name, '_');
-        if (suffix)
+        char *suffix = meth->func.name + strlen(it->struct_name);
+        if (suffix && *suffix)
         {
             char *new_name = xmalloc(strlen(mangled_struct_name) + strlen(suffix) + 1);
             sprintf(new_name, "%s%s", mangled_struct_name, suffix);
@@ -1795,7 +1901,8 @@ void instantiate_methods(ParserContext *ctx, GenericImplTemplate *it,
                     if (strcmp(gt->name, template_name) == 0)
                     {
                         // Found matching template, instantiate it
-                        instantiate_generic(ctx, template_name, arg);
+                        const char *subst_arg = unmangled_arg ? unmangled_arg : arg;
+                        instantiate_generic(ctx, template_name, arg, subst_arg, meth->token);
                         break;
                     }
                     gt = gt->next;
@@ -1809,7 +1916,8 @@ void instantiate_methods(ParserContext *ctx, GenericImplTemplate *it,
     add_instantiated_func(ctx, new_impl);
 }
 
-void instantiate_generic(ParserContext *ctx, const char *tpl, const char *arg)
+void instantiate_generic(ParserContext *ctx, const char *tpl, const char *arg,
+                         const char *unmangled_arg, Token token)
 {
     // Ignore generic placeholders
     if (strlen(arg) == 1 && isupper(arg[0]))
@@ -1847,15 +1955,18 @@ void instantiate_generic(ParserContext *ctx, const char *tpl, const char *arg)
     }
     if (!t)
     {
-        zpanic("Unknown generic: %s", tpl);
+        zpanic_at(token, "Unknown generic: %s", tpl);
     }
 
     Instantiation *ni = xmalloc(sizeof(Instantiation));
     ni->name = xstrdup(m);
     ni->template_name = xstrdup(tpl);
     ni->concrete_arg = xstrdup(arg);
-    ni->struct_node = NULL; // Placeholder to break cycles
+    ni->unmangled_arg = unmangled_arg ? xstrdup(unmangled_arg)
+                                      : xstrdup(arg); // Fallback to arg if unmangled is generic
+    ni->struct_node = NULL;                           // Placeholder to break cycles
     ni->next = ctx->instantiations;
+    ni->struct_node = NULL; // Duplicate assignment, ignore.
     ctx->instantiations = ni;
 
     ASTNode *struct_node_copy = NULL;
@@ -1865,8 +1976,12 @@ void instantiate_generic(ParserContext *ctx, const char *tpl, const char *arg)
         ASTNode *i = ast_create(NODE_STRUCT);
         i->strct.name = xstrdup(m);
         i->strct.is_template = 0;
-        i->strct.fields = copy_fields_replacing(ctx, t->struct_node->strct.fields,
-                                                t->struct_node->strct.generic_param, arg);
+        // Use first generic param for substitution (single-param backward compat)
+        const char *gp = (t->struct_node->strct.generic_param_count > 0)
+                             ? t->struct_node->strct.generic_params[0]
+                             : "T";
+        const char *subst_arg = unmangled_arg ? unmangled_arg : arg;
+        i->strct.fields = copy_fields_replacing(ctx, t->struct_node->strct.fields, gp, subst_arg);
         struct_node_copy = i;
         register_struct_def(ctx, m, i);
     }
@@ -1882,8 +1997,9 @@ void instantiate_generic(ParserContext *ctx, const char *tpl, const char *arg)
             ASTNode *nv = ast_create(NODE_ENUM_VARIANT);
             nv->variant.name = xstrdup(v->variant.name);
             nv->variant.tag_id = v->variant.tag_id;
+            const char *subst_arg = unmangled_arg ? unmangled_arg : arg;
             nv->variant.payload = replace_type_formal(
-                v->variant.payload, t->struct_node->enm.generic_param, arg, NULL, NULL);
+                v->variant.payload, t->struct_node->enm.generic_param, subst_arg, NULL, NULL);
             char mangled_var[512];
             sprintf(mangled_var, "%s_%s", m, nv->variant.name);
             register_enum_variant(ctx, m, mangled_var, nv->variant.tag_id);
@@ -1915,9 +2031,99 @@ void instantiate_generic(ParserContext *ctx, const char *tpl, const char *arg)
     {
         if (strcmp(it->struct_name, tpl) == 0)
         {
-            instantiate_methods(ctx, it, m, arg);
+            const char *subst_arg = unmangled_arg ? unmangled_arg : arg;
+            instantiate_methods(ctx, it, m, arg, subst_arg);
         }
         it = it->next;
+    }
+}
+
+void instantiate_generic_multi(ParserContext *ctx, const char *tpl, char **args, int arg_count,
+                               Token token)
+{
+    // Build mangled name from all args
+    char m[256];
+    strcpy(m, tpl);
+    for (int i = 0; i < arg_count; i++)
+    {
+        char *clean = sanitize_mangled_name(args[i]);
+        strcat(m, "_");
+        strcat(m, clean);
+        free(clean);
+    }
+
+    // Check if already instantiated
+    Instantiation *c = ctx->instantiations;
+    while (c)
+    {
+        if (strcmp(c->name, m) == 0)
+        {
+            return; // Already done
+        }
+        c = c->next;
+    }
+
+    // Find the template
+    GenericTemplate *t = ctx->templates;
+    while (t)
+    {
+        if (strcmp(t->name, tpl) == 0)
+        {
+            break;
+        }
+        t = t->next;
+    }
+    if (!t)
+    {
+        zpanic_at(token, "Unknown generic: %s", tpl);
+    }
+
+    // Register instantiation first (to break cycles)
+    Instantiation *ni = xmalloc(sizeof(Instantiation));
+    ni->name = xstrdup(m);
+    ni->template_name = xstrdup(tpl);
+    ni->concrete_arg = (arg_count > 0) ? xstrdup(args[0]) : xstrdup("T");
+    ni->struct_node = NULL;
+    ni->next = ctx->instantiations;
+    ctx->instantiations = ni;
+
+    if (t->struct_node->type == NODE_STRUCT)
+    {
+        ASTNode *i = ast_create(NODE_STRUCT);
+        i->strct.name = xstrdup(m);
+        i->strct.is_template = 0;
+
+        // Copy fields with sequential substitutions for each param
+        ASTNode *fields = t->struct_node->strct.fields;
+        int param_count = t->struct_node->strct.generic_param_count;
+
+        // Perform substitution for each param (simple approach: copy for first param, then replace
+        // in-place)
+        if (param_count > 0 && arg_count > 0)
+        {
+            // First substitution
+            i->strct.fields = copy_fields_replacing(
+                ctx, fields, t->struct_node->strct.generic_params[0], args[0]);
+
+            // Subsequent substitutions (for params B, C, etc.)
+            for (int j = 1; j < param_count && j < arg_count; j++)
+            {
+                ASTNode *tmp = copy_fields_replacing(
+                    ctx, i->strct.fields, t->struct_node->strct.generic_params[j], args[j]);
+                // This leaks prev fields, but that's acceptable for now, still, TODO.
+                i->strct.fields = tmp;
+            }
+        }
+        else
+        {
+            i->strct.fields = copy_fields_replacing(ctx, fields, "T", "int");
+        }
+
+        ni->struct_node = i;
+        register_struct_def(ctx, m, i);
+
+        i->next = ctx->instantiated_structs;
+        ctx->instantiated_structs = i;
     }
 }
 
@@ -1957,7 +2163,7 @@ char *parse_condition_raw(ParserContext *ctx, Lexer *l)
             t = lexer_next(l);
             if (t.type == TOK_EOF)
             {
-                zpanic("Unterminated condition");
+                zpanic_at(t, "Unterminated condition");
             }
             if (t.type == TOK_LPAREN)
             {
@@ -1990,7 +2196,7 @@ char *parse_condition_raw(ParserContext *ctx, Lexer *l)
         int len = (l->src + l->pos) - start;
         if (len == 0)
         {
-            zpanic("Empty condition or missing body");
+            zpanic_at(lexer_peek(l), "Empty condition or missing body");
         }
         char *c = xmalloc(len + 1);
         strncpy(c, start, len);
@@ -2120,7 +2326,7 @@ char *rewrite_expr_methods(ParserContext *ctx, char *raw)
                     }
                 }
 
-                dest += sprintf(dest, "%s_%s(%s%s", ptr_check, method, is_ptr ? "" : "&", acc);
+                dest += sprintf(dest, "%s__%s(%s%s", ptr_check, method, is_ptr ? "" : "&", acc);
 
                 int has_args = 0;
                 while (*src && paren_depth > 0)
@@ -2170,7 +2376,7 @@ char *rewrite_expr_methods(ParserContext *ctx, char *raw)
                         *p = 0;
                     }
                 }
-                dest += sprintf(dest, "%s_%s(%s%s)", ptr_check, method, is_ptr ? "" : "&", acc);
+                dest += sprintf(dest, "%s__%s(%s%s)", ptr_check, method, is_ptr ? "" : "&", acc);
                 continue;
             }
         }
@@ -2209,7 +2415,41 @@ char *rewrite_expr_methods(ParserContext *ctx, char *raw)
             }
             else
             {
-                dest += sprintf(dest, "%s_%s", acc, field);
+                ASTNode *sdef = find_struct_def(ctx, acc);
+                if (sdef && sdef->type == NODE_ENUM)
+                {
+                    // For Enums, check if it's a variant
+                    int is_variant = 0;
+                    ASTNode *v = sdef->enm.variants;
+                    while (v)
+                    {
+                        if (strcmp(v->variant.name, field) == 0)
+                        {
+                            is_variant = 1;
+                            break;
+                        }
+                        v = v->next;
+                    }
+                    if (is_variant)
+                    {
+                        dest += sprintf(dest, "%s_%s", acc, field);
+                    }
+                    else
+                    {
+                        // Static method on Enum
+                        dest += sprintf(dest, "%s__%s", acc, field);
+                    }
+                }
+                else if (sdef || !mod)
+                {
+                    // Struct static method, or Type static method
+                    dest += sprintf(dest, "%s__%s", acc, field);
+                }
+                else
+                {
+                    // Module function
+                    dest += sprintf(dest, "%s_%s", acc, field);
+                }
             }
             continue;
         }
@@ -2316,9 +2556,10 @@ char *consume_and_rewrite(ParserContext *ctx, Lexer *l)
 char *parse_and_convert_args(ParserContext *ctx, Lexer *l, char ***defaults_out, int *count_out,
                              Type ***types_out, char ***names_out, int *is_varargs_out)
 {
-    if (lexer_next(l).type != TOK_LPAREN)
+    Token t = lexer_next(l);
+    if (t.type != TOK_LPAREN)
     {
-        zpanic("Expected '(' in function args");
+        zpanic_at(t, "Expected '(' in function args");
     }
 
     char *buf = xmalloc(1024);
@@ -2397,13 +2638,13 @@ char *parse_and_convert_args(ParserContext *ctx, Lexer *l, char ***defaults_out,
             {
                 if (t.type != TOK_IDENT)
                 {
-                    zpanic("Expected arg name");
+                    zpanic_at(lexer_peek(l), "Expected arg name");
                 }
                 char *name = token_strdup(t);
                 names[count] = name; // Store name
                 if (lexer_next(l).type != TOK_COLON)
                 {
-                    zpanic("Expected ':'");
+                    zpanic_at(lexer_peek(l), "Expected ':'");
                 }
 
                 Type *arg_type = parse_type_formal(ctx, l);
@@ -2476,7 +2717,7 @@ char *parse_and_convert_args(ParserContext *ctx, Lexer *l, char ***defaults_out,
     }
     if (lexer_next(l).type != TOK_RPAREN)
     {
-        zpanic("Expected ')' after args");
+        zpanic_at(lexer_peek(l), "Expected ')' after args");
     }
 
     *defaults_out = defaults;
@@ -2521,8 +2762,40 @@ char *find_similar_symbol(ParserContext *ctx, const char *name)
 
 void register_plugin(ParserContext *ctx, const char *name, const char *alias)
 {
+    // Try to find existing (built-in) or already loaded plugin
+    ZPlugin *plugin = zptr_find_plugin(name);
+
+    // If not found, try to load it dynamically
+    if (!plugin)
+    {
+        plugin = zptr_load_plugin(name);
+
+        if (!plugin)
+        {
+            char path[1024];
+            snprintf(path, sizeof(path), "%s.so", name);
+            plugin = zptr_load_plugin(path);
+        }
+
+        if (!plugin && !strchr(name, '/'))
+        {
+            char path[1024];
+            snprintf(path, sizeof(path), "./%s.so", name);
+            plugin = zptr_load_plugin(path);
+        }
+    }
+
+    if (!plugin)
+    {
+        fprintf(stderr,
+                COLOR_RED "Error:" COLOR_RESET " Could not load plugin '%s'\n"
+                          "       Tried built-ins and dynamic loading (.so)\n",
+                name);
+        exit(1);
+    }
+
     ImportedPlugin *p = xmalloc(sizeof(ImportedPlugin));
-    p->name = xstrdup(name);
+    p->name = xstrdup(plugin->name); // Use the plugin's internal name
     p->alias = alias ? xstrdup(alias) : NULL;
     p->next = ctx->imported_plugins;
     ctx->imported_plugins = p;

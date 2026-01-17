@@ -1,0 +1,61 @@
+
+enum Result {
+    Ok(int),
+    Err(int)
+}
+
+fn add(a: int, b: int) -> int {
+    return a + b;
+}
+
+fn square(x: int) -> int {
+    return x * x;
+}
+
+test "test_result_constructors" {
+    var res = Result_Ok(42);
+    
+    assert(res.tag == Result_Ok_Tag, "Expected Ok tag");
+    assert(res.data.Ok == 42, "Data mismatch");
+    
+    var err = Result_Err(500);
+    assert(err.tag == Result_Err_Tag, "Expected Err tag");
+}
+
+test "test_pipelines" {
+    // Logic: ((5 + 5) * (5 + 5))
+    // 5 |> add(5) -> 10
+    // 10 |> square() -> 100
+    var val = 5 |> add(5) |> square();
+    
+    println "Pipeline result: {val}";
+    assert(val == 100, "Pipeline calculation failed");
+}
+
+test "test_fstrings" {
+    var x = 10;
+    var name = "ZPrep";
+    
+    var s = f"Hello {name}, x = {x}, x * 2 = {x * 2}";
+    
+    println "F-String: {s}";
+    assert(x == 10, "Sanity check");
+}
+
+test "test_defer" {
+    println "  [Defer] 1. Start";
+    
+    defer { println "  [Defer] 4. Cleanup B"; }
+    defer { println "  [Defer] 3. Cleanup A"; }
+    
+    println "  [Defer] 2. End";
+}
+
+test "test_hex_binary" {
+    var h = 0xFF;    // 255
+    var b = 0b1010;  // 10
+    assert(h == 255, "Hex parsing failed");
+    assert(b == 10, "Binary parsing failed");
+}
+
+// Removed empty test_result_enum

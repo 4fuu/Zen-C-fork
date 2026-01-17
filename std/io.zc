@@ -19,25 +19,59 @@ raw {
         va_end(args);
         return buffer;
     }
+
+    void* _z_get_stdin() 
+    { 
+        return stdin; 
+    }
+
+    int _z_get_eof() 
+    { 
+        return EOF; 
+    }
+
+    int _z_fgetc(void* stream) 
+    { 
+        return fgetc((FILE*)stream); 
+    }
 }
 
-raw {
-    char* readln() {
-        char* line = NULL;
-        size_t len = 0;
-        ssize_t read;
-        
-        read = getline(&line, &len, stdin);
-        
-        if (read != -1) {
-            // Remove newline if present
-            if (line[read - 1] == '\n') {
-                line[read - 1] = '\0';
+
+
+fn readln() -> char* {
+    var cap: usize = 64;
+    var len: usize = 0;
+    var line: char* = malloc(cap);
+    if (line == NULL) return NULL;
+    
+    var c: int;
+    var std_in = _z_get_stdin();
+    var eof_val = _z_get_eof();
+
+    while (true) {
+        c = _z_fgetc(std_in);
+        if (c == eof_val) break;
+        if (c == 10) break; // '\n'
+
+        if (len + 1 >= cap) {
+            cap = cap * 2;
+            var n = realloc(line, cap);
+            if (n == NULL) {
+                free(line);
+                return NULL;
             }
-            return line;
+            line = n;
         }
         
-        if (line) free(line);
+        line[len] = c;
+        len = len + 1;
+    }
+    
+    if (len == 0 && c == eof_val) {
+        free(line);
         return NULL;
     }
+    
+    line[len] = 0;
+    return line;
 }

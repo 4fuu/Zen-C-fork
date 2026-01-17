@@ -1,0 +1,19 @@
+//> link: -lm
+//> cflags: -O2
+
+// Declare C math function (since we don't have a math stdlib module yet)
+extern fn sin(x: double) -> double;
+
+test "test_build_directives" {
+    println "Running Build Directives Test...";
+    var x = 3.14159 / 2.0; // PI/2
+    var s = sin(x);
+    // sin(PI/2) should be 1.0
+    println "sin(PI/2) = {s}";
+    
+    if (s > 0.99 && s < 1.01) {
+        println "Math Link Success!";
+    } else {
+        println "Math Link Failure (Value wrong)";
+    }
+}

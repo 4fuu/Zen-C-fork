@@ -137,7 +137,7 @@ char *infer_type(ParserContext *ctx, ASTNode *node)
             }
             if (sym->type_info)
             {
-                return type_to_string(sym->type_info);
+                return codegen_type_to_string(sym->type_info);
             }
         }
     }
@@ -155,7 +155,7 @@ char *infer_type(ParserContext *ctx, ASTNode *node)
                 }
                 if (sig->ret_type)
                 {
-                    return type_to_string(sig->ret_type);
+                    return codegen_type_to_string(sig->ret_type);
                 }
             }
 
@@ -193,12 +193,12 @@ char *infer_type(ParserContext *ctx, ASTNode *node)
                 }
 
                 char func_name[512];
-                sprintf(func_name, "%s_%s", base, node->call.callee->member.field);
+                sprintf(func_name, "%s__%s", base, node->call.callee->member.field);
 
                 FuncSig *sig = find_func(ctx, func_name);
                 if (sig && sig->ret_type)
                 {
-                    return type_to_string(sig->ret_type);
+                    return codegen_type_to_string(sig->ret_type);
                 }
             }
         }
@@ -368,7 +368,7 @@ char *infer_type(ParserContext *ctx, ASTNode *node)
             FuncSig *sig = find_func(ctx, node->unary.operand->call.callee->var_ref.name);
             if (sig && sig->ret_type)
             {
-                return type_to_string(sig->ret_type);
+                return codegen_type_to_string(sig->ret_type);
             }
         }
 
@@ -518,4 +518,92 @@ void emit_auto_type(ParserContext *ctx, ASTNode *init_expr, Token t, FILE *out)
             fprintf(out, "__auto_type");
         }
     }
+}
+// C-compatible type stringifier for codegen.
+// Identical to type_to_string but strictly uses 'struct T' for structs to support
+// external/non-typedef'd types.
+char *codegen_type_to_string(Type *t)
+{
+    return type_to_c_string(t);
+}
+
+// Emit function signature using Type info for correct C codegen
+void emit_func_signature(FILE *out, ASTNode *func, const char *name_override)
+{
+    if (!func || func->type != NODE_FUNCTION)
+    {
+        return;
+    }
+
+    // Return type
+    char *ret_str;
+    if (func->func.ret_type_info)
+    {
+        ret_str = codegen_type_to_string(func->func.ret_type_info);
+    }
+    else if (func->func.ret_type)
+    {
+        ret_str = xstrdup(func->func.ret_type);
+    }
+    else
+    {
+        ret_str = xstrdup("void");
+    }
+
+    fprintf(out, "%s %s(", ret_str, name_override ? name_override : func->func.name);
+    free(ret_str);
+
+    // Args
+    if (func->func.arg_count == 0 && !func->func.is_varargs)
+    {
+        fprintf(out, "void");
+    }
+    else
+    {
+        for (int i = 0; i < func->func.arg_count; i++)
+        {
+            if (i > 0)
+            {
+                fprintf(out, ", ");
+            }
+
+            char *type_str = NULL;
+            if (func->func.arg_types && func->func.arg_types[i])
+            {
+                type_str = codegen_type_to_string(func->func.arg_types[i]);
+            }
+            else
+            {
+                type_str = xstrdup("void*"); // Fallback
+            }
+
+            const char *name = "";
+            if (func->func.param_names && func->func.param_names[i])
+            {
+                name = func->func.param_names[i];
+            }
+
+            // check if array type
+            char *bracket = strchr(type_str, '[');
+            if (bracket)
+            {
+                int base_len = bracket - type_str;
+                fprintf(out, "%.*s %s%s", base_len, type_str, name, bracket);
+            }
+            else
+            {
+                fprintf(out, "%s %s", type_str, name);
+            }
+            free(type_str);
+        }
+        if (func->func.is_varargs)
+        {
+            if (func->func.arg_count > 0)
+            {
+                fprintf(out, ", ");
+            }
+            fprintf(out, "...");
+        }
+    }
+    fprintf(out, ")");
 }

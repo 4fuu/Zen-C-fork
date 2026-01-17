@@ -1,0 +1,14 @@
+
+import "std/string.zc"
+
+test "test_chained" {
+    var s = String::from("hello");
+    var opt = s.find('e');
+    if opt.is_some() {
+        "Found at index: {opt.unwrap()}";
+    }
+    
+    if s.find('l').is_some() {
+        "Chained call works!";
+    }
+}

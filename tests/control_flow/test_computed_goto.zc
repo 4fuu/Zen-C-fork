@@ -1,0 +1,23 @@
+
+test "test_computed_goto" -> int {
+    var x = 0;
+    
+    // Get address of label using && unary operator
+    var target = &&label_B;
+    
+    // Jump to label A first
+    goto label_A;
+    
+    label_A:
+        x = x + 1;
+        // Computed goto: goto *ptr
+        goto *target;
+        
+    label_B:
+        x = x + 10;
+        goto label_C;
+        
+    label_C:
+        if (x != 11) exit(1);
+        
+}

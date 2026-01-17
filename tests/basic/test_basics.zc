@@ -1,0 +1,10 @@
+
+test "test_hello" {
+    println "It works!"; 
+}
+
+test "test_vars" {
+    var x = 10;
+    var y: int = 20;
+    println "Sum: {x + y}";
+}

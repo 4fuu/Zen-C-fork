@@ -32,6 +32,11 @@ void print_search_paths()
     printf("Environment: ZC_STD_PATH=%s\n", getenv("ZC_STD_PATH") ? getenv("ZC_STD_PATH") : "(not set)");
 }
 
+void print_version()
+{
+    printf("Zen C version %s\n", ZEN_VERSION);
+}
+
 void print_usage()
 {
     printf("Usage: zc [command] [options] <file.zc>\n");
@@ -43,6 +48,7 @@ void print_usage()
     printf("  transpile Transpile to C code only (no compilation)\n");
     printf("  lsp     Start Language Server\n");
     printf("Options:\n");
+    printf("  --version       Print version information");
     printf("  -o <file>       Output executable name\n");
     printf("  --emit-c        Keep generated C file (out.c)\n");
     printf("  --freestanding  Freestanding mode (no stdlib)\n");
@@ -56,7 +62,6 @@ void print_usage()
 
 int main(int argc, char **argv)
 {
-    // Defaults
     memset(&g_config, 0, sizeof(g_config));
     strcpy(g_config.cc, "gcc");
 
@@ -129,6 +134,11 @@ int main(int argc, char **argv)
         if (strcmp(arg, "--emit-c") == 0)
         {
             g_config.emit_c = 1;
+        }
+        else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-V") == 0)
+        {
+            print_version();
+            return 0;
         }
         else if (strcmp(arg, "--verbose") == 0 || strcmp(arg, "-v") == 0)
         {
@@ -228,21 +238,6 @@ int main(int argc, char **argv)
     // Scan for build directives (e.g. //> link: -lm)
     scan_build_directives(&ctx, src);
 
-    // Register built-in plugins
-    extern ZPlugin brainfuck_plugin;
-    extern ZPlugin befunge_plugin;
-    extern ZPlugin lisp_plugin;
-    extern ZPlugin forth_plugin;
-    extern ZPlugin regex_plugin;
-    extern ZPlugin sql_plugin;
-
-    zptr_register_plugin(&brainfuck_plugin);
-    zptr_register_plugin(&befunge_plugin);
-    zptr_register_plugin(&lisp_plugin);
-    zptr_register_plugin(&forth_plugin);
-    zptr_register_plugin(&regex_plugin);
-    zptr_register_plugin(&sql_plugin);
-
     Lexer l;
     lexer_init(&l, src);
 
@@ -315,9 +310,9 @@ int main(int argc, char **argv)
     char *outfile = g_config.output_file ? g_config.output_file : ZC_DEFAULT_OUTPUT;
 
     // TODO: Quote paths to handle spaces on Windows.
-    snprintf(cmd, sizeof(cmd), "%s %s %s %s %s -o %s out.c " ZC_MATH_FLAG " " ZC_PTHREAD_FLAG " -I./src -I./std %s", g_config.cc,
-             g_config.gcc_flags, g_cflags, g_config.is_freestanding ? "-ffreestanding" : "", "",
-             outfile, g_link_flags);
+    snprintf(cmd, sizeof(cmd), "%s %s %s %s -o %s out.c " ZC_MATH_FLAG " " ZC_PTHREAD_FLAG " -I./src -I./std %s %s", g_config.cc,
+             g_config.gcc_flags, g_cflags, g_config.is_freestanding ? "-ffreestanding" : "",
+             outfile, g_parser_ctx->has_async ? "-lpthread" : "", g_link_flags);
 
     if (g_config.verbose)
     {

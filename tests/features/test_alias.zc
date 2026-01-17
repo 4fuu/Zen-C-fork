@@ -1,0 +1,41 @@
+
+struct Point {
+    x: int;
+    y: int;
+}
+
+alias MyIntPtr = int*;
+alias MyInt = int;
+
+fn process(val: MyInt) -> MyInt {
+    return val + 1;
+}
+
+alias BinOp = fn(int, int) -> int;
+
+fn add(a: int, b: int) -> int {
+    return a + b;
+}
+
+test "alias basic" {
+    var x: MyInt = 10;
+    var ptr: MyIntPtr = &x;
+    
+    assert(x == 10, "Basic alias failed");
+    assert(*ptr == 10, "Pointer alias failed");
+    
+    var res = process(x);
+    assert(res == 11, "Function with alias arg failed");
+}
+
+    p.x = 100;
+    p.y = 200;
+    
+    assert(p.x == 100, "Struct alias access failed");
+}
+
+test "alias function pointer" {
+    // var op: BinOp;
+    // Assignment currently not supported for function types without casting op = add; 
+    // assert(op(1, 2) == 3, "Function alias");
+}

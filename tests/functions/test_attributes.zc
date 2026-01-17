@@ -1,0 +1,117 @@
+
+@must_use
+fn compute() -> int {
+    return 42;
+}
+
+@deprecated("Use new_version instead")
+fn old_function() {
+    // deprecated
+}
+
+@inline
+fn fast_add(a: int, b: int) -> int {
+    return a + b;
+}
+
+@must_use @inline
+fn combined() -> int {
+    return 100;
+}
+
+fn optional_result() -> int {
+    return 1;
+}
+
+@packed
+struct PackedHeader {
+    magic: U8;
+    version: U8;
+    size: U32;
+}
+
+@align(16)
+struct AlignedVec4 {
+    x: float;
+    y: float;
+    z: float;
+    w: float;
+}
+
+@packed @align(4)
+struct CombinedStruct {
+    flags: U8;
+    value: U16;
+}
+
+// Normal struct for comparison
+struct NormalStruct {
+    a: U8;
+    b: U32;
+}
+
+var init_called = 0;
+var cleanup_called = 0;
+
+@constructor
+fn my_init() {
+    init_called = 1;
+}
+
+@destructor
+fn my_cleanup() {
+    // We can't easily assert this ran in a test runner, but we can verify it compiles
+    cleanup_called = 1;
+}
+
+@noinline
+fn complex_calc(x: int) -> int {
+    return x * 2;
+}
+
+// @section tests removed due to platform incompatibility (mach-o vs elf)
+
+@weak
+fn weak_func() {}
+
+@unused
+fn unused_func() {}
+
+test "function attributes" {
+    // @must_use: result used - no warning
+    var x = compute();
+    assert(x == 42, "compute() failed");
+    
+    // No must_use - can discard
+    optional_result();
+    
+    // @inline works
+    var sum = fast_add(1, 2);
+    assert(sum == 3, "inline add failed");
+    
+    // Combined attributes
+    var c = combined();
+    assert(c == 100, "combined failed");
+    
+    // @must_use: result verified
+    assert(compute() == 42, "Checking must_use result");
+    
+    // Check constructor ran
+    assert(init_called == 1, "Constructor attribute failed");
+    
+    // Check noinline compiles and runs
+    assert(complex_calc(10) == 20, "Noinline function failed");
+}
+
+test "struct attributes" {
+    // @packed: no padding, should be 6 bytes
+    // (1 + 1 + 4 = 6)
+    // Without packing: 1 + 1 + 2(pad) + 4 = 8
+    assert(sizeof(PackedHeader) == 6, "PackedHeader should be 6 bytes");
+    
+    // @align(16): aligned to 16 bytes
+    assert(sizeof(AlignedVec4) >= 16, "AlignedVec4 should be >= 16 bytes");
+    
+    // Normal struct has padding
+    assert(sizeof(NormalStruct) == 8, "NormalStruct has padding");
+}

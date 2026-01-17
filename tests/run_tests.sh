@@ -33,7 +33,7 @@ if [ ! -f "$ZC" ]; then
     exit 1
 fi
 
-for test_file in "$TEST_DIR"/*.zc; do
+while read -r test_file; do
     [ -e "$test_file" ] || continue
 
     echo -n "Testing $(basename "$test_file")... "
@@ -49,7 +49,7 @@ for test_file in "$TEST_DIR"/*.zc; do
         ((FAILED++))
         FAILED_TESTS="$FAILED_TESTS\n- $(basename "$test_file")"
     fi
-done
+done < <(find "$TEST_DIR" -name "*.zc" | sort)
 
 echo "----------------------------------------"
 echo "Summary:"

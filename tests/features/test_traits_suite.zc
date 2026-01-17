@@ -1,0 +1,104 @@
+
+trait Greeter {
+    fn greet(self, msg: string);
+    fn shout(self);
+}
+
+struct Robot {
+    id: int;
+}
+
+impl Greeter for Robot {
+    fn greet(self, msg: string) {
+        println "Robot {self.id} says: {msg}";
+    }
+    fn shout(self) {
+        println "ROBOT {self.id} ACTIVATED";
+    }
+}
+
+trait Shape {
+    fn area(self) -> float;
+    fn name(self) -> string;
+}
+
+struct Circle {
+    radius: float;
+}
+
+impl Shape for Circle {
+    fn area(self) -> float {
+        return 3.14159 * self.radius * self.radius;
+    }
+    fn name(self) -> string {
+        return "Circle";
+    }
+}
+
+struct Rectangle {
+    width: float;
+    height: float;
+}
+
+impl Shape for Rectangle {
+    fn area(self) -> float {
+        return self.width * self.height;
+    }
+    fn name(self) -> string {
+        return "Rectangle";
+    }
+}
+
+@derive(Debug, Clone, Eq)
+struct Point {
+    x: int;
+    y: int;
+}
+
+
+fn print_shape_info(s: Shape) {
+    println "Shape: {s.name()}, Area: {s.area()}";
+}
+
+test "basic_traits" {
+    var r: Robot = Robot { id: 42 };    
+    var g: Greeter = &r;
+    
+    g.greet("Hello World");
+    g.shout();
+}
+
+test "advanced_traits" {
+    var c = Circle { radius: 5.0 };
+    var r = Rectangle { width: 4.0, height: 6.0 };
+
+    var s_c: Shape = &c;
+    var s_r: Shape = &r;
+
+    print_shape_info(s_c);
+    print_shape_info(s_r);
+    
+    if (s_c.area() > s_r.area()) {
+        println "Circle is larger";
+    } else {
+        println "Rectangle is larger";
+    }
+}
+
+test "test_derive" {
+    var p1 = Point{x: 10, y: 20};
+    
+    // Debug
+    var s = p1.to_string();
+    assert(strcmp(s, "Point { ... }") == 0, "Debug string matches");
+    
+    // Clone
+    var p2 = p1.clone();
+    assert(p2.x == 10, "Clone x matches");
+    
+    // Eq
+    assert(p1.eq(p2) == true, "Eq works (true)");
+    
+    var p3 = Point{x: 10, y: 21};
+    assert(p1.eq(p3) == false, "Eq works (false)");
+}

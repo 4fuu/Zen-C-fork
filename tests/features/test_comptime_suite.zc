@@ -1,0 +1,29 @@
+
+comptime {
+    printf("fn generated_func() {\n");
+    printf("    println \"  I was generated at compile time!\";\n");
+    printf("}\n");
+}
+
+@comptime
+fn double_ct(x: int) -> int {
+    return x * 2;
+}
+
+test "test_comptime_block" {
+    println "Running Comptime Test...";
+    generated_func();
+    println "Comptime Test Complete.";
+}
+
+test "test_comptime_attr" {
+    var x = double_ct(21);
+    assert(x == 42, "Comptime function failed");
+    println "Comptime function called successfully";
+}
+
+test "test_comptime_fn" {
+    comptime {
+        println "println \"Hello from comptime fn!\";";
+    }
+}

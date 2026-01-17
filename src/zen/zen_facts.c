@@ -367,7 +367,7 @@ void zen_init(void)
 // Global helper to print.
 void zzen_at(Token t, const char *msg, const char *url)
 {
-    fprintf(stderr, "\033[1;35mzen: \033[0m\033[1m%s\033[0m\n", msg);
+    fprintf(stderr, COLOR_GREEN "zen: " COLOR_RESET COLOR_BOLD "%s" COLOR_RESET "\n", msg);
 
     extern char *g_current_filename;
     if (t.line > 0)
@@ -393,7 +393,7 @@ void zzen_at(Token t, const char *msg, const char *url)
         {
             fprintf(stderr, " ");
         }
-        fprintf(stderr, "\033[1;35m^ zen tip\033[0m\n");
+        fprintf(stderr, COLOR_GREEN "^ zen tip" COLOR_RESET "\n");
     }
 
     if (url)
@@ -410,6 +410,12 @@ int zen_trigger_at(ZenTrigger t, Token location)
     }
 
     if (has_triggered)
+    {
+        return 0;
+    }
+
+    extern int g_warning_count;
+    if (g_warning_count > 0)
     {
         return 0;
     }
@@ -458,6 +464,12 @@ void zen_trigger_global(void)
         return;
     }
     if (has_triggered)
+    {
+        return;
+    }
+
+    extern int g_warning_count;
+    if (g_warning_count > 0)
     {
         return;
     }

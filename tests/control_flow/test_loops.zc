@@ -1,0 +1,133 @@
+
+test "test_loops" {
+    println "Testing loop constructs...";
+    
+    // for-in range
+    var sum1 = 0;
+    for i in 0..5 {
+        sum1 += i;
+    }
+    assert(sum1 == 10, "for-in range (0..5) failed");
+    println "  -> for-in range (0..5): Passed";
+    
+    // for-in with step
+    var sum2 = 0;
+    for i in 0..10 step 2 {
+        sum2 += i;
+    }
+    assert(sum2 == 20, "for-in with step failed");
+    println "  -> for-in with step: Passed";
+    
+    // Repeat n times
+    var count = 0;
+    repeat 7 {
+        count++;
+    }
+    assert(count == 7, "repeat 7 failed");
+    println "  -> repeat 7: Passed";
+    
+    // loop with break
+    var i = 0;
+    loop {
+        i++;
+        if (i >= 5) {
+            break;
+        }
+    }
+    assert(i == 5, "loop with break failed");
+    println "  -> loop with break: Passed";
+    
+    // While loop
+    var j = 0;
+    while j < 3 {
+        j++;
+    }
+    assert(j == 3, "while loop failed");
+    println "  -> while loop: Passed";
+    
+    // C-style for loop
+    var sum3 = 0;
+    for (var k = 0; k < 4; k = k + 1) {
+        sum3 += k;
+    }
+    assert(sum3 == 6, "C-style for loop failed");
+    println "  -> C-style for loop: Passed";
+    
+    // loop with continue
+    var sum4 = 0;
+    var m = 0;
+    loop {
+        m++;
+        if (m == 3) {
+            continue;
+        }
+        if (m > 5) {
+            break;
+        }
+        sum4 += m;
+    }
+    assert(sum4 == 12, "loop with continue failed");
+    println "  -> loop with continue: Passed";
+    
+    println "All loop tests passed!";
+    
+}
+
+}
+
+fn print_nums(list: [int]) {
+    var i = 0;
+    while (i < list.len) {
+        println "Num: {list.data[i]}";
+        i++;
+    }
+}
+
+test "test_arrays_loop" {
+    // Array literal transformation
+    var nums: [int] = [10, 20, 30];
+    print_nums(nums);
+}
+
+test "test_do_while" {
+    var x = 0;
+    
+    // Basic do-while (runs at least once)
+    do {
+        x++;
+    } while x < 5;
+    
+    assert(x == 5, "do-while x expected 5");
+    
+    // Do-while with false condition (still runs once)
+    var y = 0;
+    do {
+        y = 100;
+    } while false;
+    
+    assert(y == 100, "do-while false expected 100");
+}
+
+test "test_range_loops_generic" {
+    println "Testing range loops with different types...";
+    
+    // Test with isize variables
+    var sum_isize: isize = 0;
+    var start: isize = 0;
+    var end: isize = 5;
+    for var i: isize = start; i < end; i++ {
+        sum_isize += i;
+    }
+    println "isize range (0..5): sum = {sum_isize}";
+    assert(sum_isize == 10, "isize range failed");
+    
+    // Test with regular int
+    var sum_int = 0;
+    for i in 0..5 {
+        sum_int += i;
+    }
+    println "int range (0..5): sum = {sum_int}";
+    assert(sum_int == 10, "int range failed");
+    
+    "-> Range loops work with any integer type!";
+}

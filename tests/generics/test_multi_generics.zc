@@ -1,0 +1,13 @@
+
+struct Pair<A, B> {
+    first: A;
+    second: B;
+}
+
+test "multi-type generics basic" {
+    var p: Pair<int, float>;
+    p.first = 42;
+    p.second = 3.14;
+    assert(p.first == 42, "First field failed");
+    println "Multi-type generics test passed!";
+}

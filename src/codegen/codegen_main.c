@@ -202,7 +202,7 @@ void codegen_node(ParserContext *ctx, ASTNode *node, FILE *out)
 
         if (!ctx->skip_preamble)
         {
-            emit_preamble(out);
+            emit_preamble(ctx, out);
         }
         emit_includes_and_aliases(kids, out);
 

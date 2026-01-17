@@ -1,0 +1,144 @@
+
+struct Flags {
+    bits: int;
+}
+
+impl Flags {
+    fn new(b: int) -> Flags { return Flags{bits: b}; }
+
+    fn bitor(self, other: Flags) -> Flags {
+        "  [DEBUG] Custom bitor called! combining {self.bits} | {other.bits}";
+        return Flags { bits: self.bits | other.bits };
+    }
+}
+
+struct Container {
+    val: int;
+}
+
+impl Container {
+    fn new(v: int) -> Container { return Container { val: v }; }
+    
+    fn get(self, idx: int) -> int {
+        return self.val + idx;
+    }
+    
+    fn set(self, idx: int, v: int) {
+        self.val = v + idx;
+    }
+    
+    fn neg(self) -> Container {
+        return Container { val: -self.val };
+    }
+    
+    fn not(self) -> bool {
+        return self.val == 0;
+    }
+    
+    fn bitnot(self) -> Container {
+        return Container { val: ~self.val };
+    }
+}
+
+enum Result {
+    Ok(int),
+    Err(int)
+}
+
+fn make_ok(v: int) -> Result {
+    return Result_Ok(v);
+}
+
+fn make_err(e: int) -> Result {
+    return Result_Err(e);
+}
+
+fn process_result(fail: int) -> Result {
+    var val = make_ok(10)?;
+    
+    if (fail) {
+        var v2 = make_err(500)?; 
+        return Result_Ok(v2 + 1000); 
+    }
+    
+    return Result_Ok(val + 20);
+}
+
+fn add(a: int, b: int) -> int {
+    return a + b;
+}
+
+fn twice(x: int) -> int {
+    return x * 2;
+}
+
+test "test_operator_overloading" {
+    "=> Bitwise Primitives";
+    var a = 0b1100;
+    var b = 0b1010;
+    
+    "{a} | {b} = {a | b} (Expected 14)";
+    "{a} & {b} = {a & b} (Expected 8)";
+    "{a} ^ {b} = {a ^ b} (Expected 6)";
+    "{a} << 1 = {a << 1} (Expected 24)";
+
+    "=> Compound Assignment Desugaring";
+    var x = 10;
+    x += 5; // 15
+    x <<= 1; // 30
+
+    "=> Struct Overloading + Compound (|=)";
+    var f1 = Flags::new(1);
+    var f2 = Flags::new(4);
+    f1 |= f2; 
+    "Result bits: {f1.bits} (Expected 5)";
+    
+    const MAX_LIMIT = 100;
+}
+
+test "test_extended_overloading" {
+    var c = Container::new(10);
+    
+    // Index Get
+    assert(c[5] == 15, "Get Failed");
+    
+    // Index Set
+    c[2] = 20; 
+    assert(c.val == 22, "Set Failed");
+    
+    // Compound Assignment
+    c[0] += 5;
+    assert(c.val == 27, "Compound Set Failed");
+    
+    // Unary Neg
+    var n = -c; 
+    assert(n.val == -27, "Neg Failed");
+    
+    // Unary Not
+    assert(!c == false, "Not Operator Failed");
+
+    // Unary Bitnot
+    var b = ~c; 
+    assert(b.val == ~27, "Bitnot Failed");
+}
+
+test "test_pipe_operator" {
+    var res = 5 |> twice;
+    assert(res == 10, "Pipe twice failed");
+
+    var res2 = 10 |> add(20);
+    assert(res2 == 30, "Pipe add failed");
+    
+    var res3 = 5 |> twice |> add(10); // 20
+    assert(res3 == 20, "Multi-pipe failed");
+}
+
+test "test_try_operator" {
+    var res_ok = process_result(0);
+    assert(res_ok.tag == Result_Ok_Tag, "Expected Ok");
+    assert(res_ok.data.Ok == 30, "Expected 30");
+    
+    var res_err = process_result(1);
+    assert(res_err.tag == Result_Err_Tag, "Expected Err");
+    assert(res_err.data.Err == 500, "Expected Err(500)");
+}

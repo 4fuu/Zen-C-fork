@@ -54,10 +54,14 @@ typedef struct Type
     struct Type **args; // For GENERIC args.
     int arg_count;
     int is_const;
-    int array_size;  // For fixed-size arrays [T; N].
-    int is_varargs;  // For function types (...).
-    int is_restrict; // For restrict pointers.
-    int has_drop;    // For RAII: does this type implement Drop?
+    int is_explicit_struct; // e.g. "struct Foo" vs "Foo"
+    union
+    {
+        int array_size;  // For fixed-size arrays [T; N].
+        int is_varargs;  // For function types (...).
+        int is_restrict; // For restrict pointers.
+        int has_drop;    // For RAII: does this type implement Drop?
+    };
 } Type;
 
 // ** AST Node Types **
@@ -373,7 +377,8 @@ struct ASTNode
             char *name;
             ASTNode *fields;
             int is_template;
-            char *generic_param;
+            char **generic_params;   // Array of generic parameter names (for example, ["K", "V"])
+            int generic_param_count; // Number of generic parameters
             char *parent;
             int is_union;
             int is_packed;     // @packed attribute.
@@ -416,6 +421,8 @@ struct ASTNode
         struct
         {
             char *content;
+            char **used_symbols;
+            int used_symbol_count;
         } raw_stmt;
 
         struct
@@ -540,6 +547,8 @@ void ast_free(ASTNode *node);
 Type *type_new(TypeKind kind);
 Type *type_new_ptr(Type *inner);
 int type_eq(Type *a, Type *b);
+int is_integer_type(Type *t);
 char *type_to_string(Type *t);
+char *type_to_c_string(Type *t);
 
 #endif

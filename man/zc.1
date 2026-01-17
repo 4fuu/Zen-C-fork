@@ -1,0 +1,108 @@
+.TH ZC 1 "2026-01-15" "Zen C 0.1.0" "User Commands"
+.SH NAME
+zc \- Zen C compiler and toolchain
+.SH SYNOPSIS
+.B zc
+.I command
+[\fIoptions\fR]
+.I file.zc
+.SH DESCRIPTION
+.B zc
+is the compiler for Zen C, a modern systems programming language that compiles to
+human-readable GNU C/C11. It provides type inference, pattern matching, generics,
+traits, async/await, and manual memory management with RAII capabilities while
+maintaining 100% C ABI compatibility.
+.SH COMMANDS
+.TP
+.B run
+Compile and execute the program immediately.
+.TP
+.B build
+Compile to an executable file (default mode).
+.TP
+.B check
+Check for syntax and semantic errors only; do not compile.
+.TP
+.B repl
+Start the interactive Read-Eval-Print Loop.
+.TP
+.B transpile
+Transpile to C code only without compiling to an executable.
+.TP
+.B lsp
+Start the Language Server Protocol daemon for editor integration.
+.SH OPTIONS
+.TP
+.BR \-o " " \fIfile\fR
+Specify output executable name.
+.TP
+.B \-\-emit\-c
+Keep the generated C file (out.c) after compilation.
+.TP
+.B \-\-freestanding
+Enable freestanding mode (no standard library).
+.TP
+.BR \-\-cc " " \fIcompiler\fR
+Select C compiler backend (gcc, clang, tcc, zig). Default: gcc
+.TP
+.BR \-O \fIlevel\fR
+Set optimization level (0-3, s, fast).
+.TP
+.B \-g
+Include debug information in the output.
+.TP
+.BR \-v ", " \-\-verbose
+Enable verbose output.
+.TP
+.BR \-q ", " \-\-quiet
+Suppress non-error output.
+.TP
+.B \-c
+Compile only; produce object file (.o) without linking.
+.SH ENVIRONMENT
+.TP
+.B ZC_ROOT
+Specifies the location of the Zen C standard library. If unset, searches in
+./std/, /usr/local/share/zenc/, and /usr/share/zenc/.
+.SH EXAMPLES
+.TP
+Compile and run a program:
+.nf
+.B zc run hello.zc
+.fi
+.TP
+Build an optimized executable:
+.nf
+.B zc build app.zc \-o myapp \-O3
+.fi
+.TP
+Transpile to C code:
+.nf
+.B zc transpile source.zc \-o output.c
+.fi
+.TP
+Use Clang as backend:
+.nf
+.B zc build app.zc \-\-cc clang
+.fi
+.SH EXIT STATUS
+Returns 0 on success, 1 on compilation error, or non-zero on execution failure (run mode).
+.SH FILES
+.TP
+.I out.c
+Temporary C file generated during compilation (removed unless \-\-emit\-c is specified).
+.TP
+.I /usr/share/zenc/
+Default standard library location.
+.TP
+.I ~/.config/zc/
+User configuration directory (future use).
+.SH SEE ALSO
+.BR zc (5),
+.BR zenc (7),
+.BR gcc (1),
+.BR clang (1)
+.SH BUGS
+Report bugs at: https://github.com/z-libs/Zen-C/issues
+.SH AUTHORS
+The Zen C development team.

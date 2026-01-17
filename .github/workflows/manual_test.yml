@@ -1,0 +1,79 @@
+name: Manual Test Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: 'Operating System'
+        required: true
+        default: 'ubuntu-latest'
+        type: choice
+        options:
+          - ubuntu-latest
+          - macos-latest
+          - macos-13
+          - windows-latest
+      compiler:
+        description: 'Compiler'
+        required: true
+        default: 'gcc'
+        type: choice
+        options:
+          - gcc
+          - clang
+      test_file:
+        description: 'Specific test file to run (or "all")'
+        required: true
+        default: 'all'
+        type: string
+      extra_flags:
+        description: 'Extra compiler flags'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  manual-test:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Compiler Environment
+        shell: bash
+        run: |
+          echo "Setting up environment for ${{ inputs.os }} using ${{ inputs.compiler }}"
+          if [[ "${{ inputs.os }}" == "macos"* ]]; then
+             if [[ "${{ inputs.compiler }}" == "gcc" ]]; then
+                echo "Providing GCC on macOS"
+                # macOS runners usually have gcc alias to clang, but we might want real gcc-12 etc if available
+                # For now we will rely on system default or brew if strictly needed.
+                # brew install gcc
+             fi
+          fi
+
+      - name: Build Compiler
+        shell: bash
+        run: make
+
+      - name: Run Tests
+        shell: bash
+        run: |
+          TEST_TARGET="${{ inputs.test_file }}"
+          COMPILER="${{ inputs.compiler }}"
+          FLAGS="${{ inputs.extra_flags }}"
+
+          echo "Running tests..."
+          echo "Target: $TEST_TARGET"
+          echo "Compiler: $COMPILER"
+          
+          if [ "$TEST_TARGET" = "all" ]; then
+             ./tests/run_tests.sh --cc $COMPILER
+          else
+             if [ ! -f "$TEST_TARGET" ]; then
+                echo "Error: Test file '$TEST_TARGET' not found."
+                echo "Available tests:"
+                find tests -name "*.zc"
+                exit 1
+             fi
+             ./zc run "$TEST_TARGET" --cc $COMPILER $FLAGS
+          fi

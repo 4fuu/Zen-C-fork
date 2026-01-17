@@ -1,0 +1,104 @@
+.TH ZC 5 "2026-01-15" "Zen C 0.1.0" "File Formats"
+.SH NAME
+zc \- Zen C source file format and build directives
+.SH DESCRIPTION
+Zen C source files use the
+.B .zc
+extension and contain Zen C language code. Files may include special build
+directives at the top to configure compilation without requiring external
+build systems.
+.SH BUILD DIRECTIVES
+Build directives are special comments placed at the beginning of source files,
+using the format
+.BR "//> " \fIdirective\fR: " " \fIarguments\fR
+.PP
+Supported directives:
+.TP
+.BR "//> link:" " " \fI\-lfoo\fR " or " \fIpath/to/lib.a\fR
+Link against a library or object file.
+.TP
+.BR "//> lib:" " " \fIpath/to/libs\fR
+Add a library search path (\-L flag).
+.TP
+.BR "//> include:" " " \fIpath/to/headers\fR
+Add an include search path (\-I flag).
+.TP
+.BR "//> cflags:" " " \fI\-Wall \-O3\fR
+Pass arbitrary flags to the C compiler.
+.TP
+.BR "//> define:" " " \fIMACRO\fR " or " \fIKEY=VAL\fR
+Define a preprocessor macro (\-D flag).
+.TP
+.BR "//> pkg\-config:" " " \fIgtk+\-3.0\fR
+Run pkg-config and apply \-\-cflags and \-\-libs automatically.
+.TP
+.BR "//> shell:" " " \fIcommand\fR
+Execute a shell command during the build process.
+.TP
+.BR "//> get:" " " \fIhttp://url/file\fR
+Download a file if it does not exist locally.
+.TP
+.B //> immutable\-by\-default
+Make all variables immutable unless declared with
+.BR mut .
+.SH SYNTAX ELEMENTS
+.SS Comments
+.TP
+.B // comment
+Single-line comment
+.TP
+.B /* ... */
+Multi-line comment
+.SS Imports
+.TP
+.BI "import " \[dq]module\[dq]
+Import a Zen C module
+.TP
+.BI "include " <header.h>
+Include a C header file
+.SS Raw C Blocks
+.PP
+.nf
+.B raw {
+    // Raw C code injected directly
+.B }
+.fi
+.SH EXAMPLES
+.SS Basic Program with Directives
+.nf
+//> link: \-lm
+//> cflags: \-O3
+//> immutable\-by\-default
+
+import "std/io.zc"
+
+fn main() {
+    println "Hello, Zen C!";
+}
+.fi
+.SS Using pkg-config
+.nf
+//> pkg\-config: sdl2
+//> cflags: \-std=c11
+
+import <SDL2/SDL.h>
+
+fn main() {
+    SDL_Init(SDL_INIT_VIDEO);
+    // ...
+}
+.fi
+.SH FILE LOCATIONS
+.TP
+.I *.zc
+Zen C source files
+.TP
+.I std/*.zc
+Standard library modules
+.TP
+.I ./imports/
+Project-local modules
+.SH SEE ALSO
+.BR zc (1),
+.BR zenc (7),
+.BR pkg\-config (1)

@@ -110,8 +110,7 @@ static int check_type_compatibility(TypeChecker *tc, Type *target, Type *value, 
 
         // Exception: integer promotion/demotion.
 
-        if (target->kind >= TYPE_I8 && target->kind <= TYPE_U64 && value->kind >= TYPE_I8 &&
-            value->kind <= TYPE_U64)
+        if (is_integer_type(target) && is_integer_type(value))
         {
             return 1;
         }

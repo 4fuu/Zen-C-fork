@@ -1,0 +1,22 @@
+
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define DEBUG_MODE 1
+
+test "test_c_macros" {
+    var x = MAX(10, 20);
+    
+    if x == 20 {
+        println "MAX macro worked";
+    } else {
+        println "MAX macro failed";
+        exit(1);
+    }
+
+    #ifdef DEBUG_MODE
+        println "Debug mode active";
+    #endif
+
+    #ifndef INVALID_MACRO
+        println "Conditionals working";
+    #endif
+}

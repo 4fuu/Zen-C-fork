@@ -99,7 +99,14 @@ int is_integer_type(Type *t)
             t->kind == TYPE_U16 || t->kind == TYPE_I32 || t->kind == TYPE_U32 ||
             t->kind == TYPE_I64 || t->kind == TYPE_U64 || t->kind == TYPE_USIZE ||
             t->kind == TYPE_ISIZE || t->kind == TYPE_BYTE || t->kind == TYPE_RUNE ||
-            t->kind == TYPE_UINT || t->kind == TYPE_I128 || t->kind == TYPE_U128);
+            t->kind == TYPE_UINT || t->kind == TYPE_I128 || t->kind == TYPE_U128 ||
+            (t->kind == TYPE_STRUCT && t->name &&
+             (0 == strcmp(t->name, "int8_t") || 0 == strcmp(t->name, "uint8_t") ||
+              0 == strcmp(t->name, "int16_t") || 0 == strcmp(t->name, "uint16_t") ||
+              0 == strcmp(t->name, "int32_t") || 0 == strcmp(t->name, "uint32_t") ||
+              0 == strcmp(t->name, "int64_t") || 0 == strcmp(t->name, "uint64_t") ||
+              0 == strcmp(t->name, "size_t") || 0 == strcmp(t->name, "ssize_t") ||
+              0 == strcmp(t->name, "ptrdiff_t"))));
 }
 
 int is_float_type(Type *t)
@@ -279,6 +286,131 @@ char *type_to_string(Type *t)
         }
         return xstrdup(t->name);
     }
+
+    default:
+        return xstrdup("unknown");
+    }
+}
+
+// C-compatible type stringifier.
+// Strictly uses 'struct T' for explicit structs to support external types.
+// Does NOT mangle pointers to 'Ptr'.
+char *type_to_c_string(Type *t)
+{
+    if (!t)
+    {
+        return xstrdup("void");
+    }
+
+    switch (t->kind)
+    {
+    case TYPE_VOID:
+        return xstrdup("void");
+    case TYPE_STRUCT:
+    {
+        // Only prepend 'struct' if explicitly requested (e.g. "struct Foo")
+        // otherwise assume it's a typedef/alias (e.g. "Foo").
+        if (t->is_explicit_struct)
+        {
+            char *res = xmalloc(strlen(t->name) + 8);
+            sprintf(res, "struct %s", t->name);
+            return res;
+        }
+        else
+        {
+            return xstrdup(t->name);
+        }
+    }
+    case TYPE_BOOL:
+        return xstrdup("bool");
+    case TYPE_STRING:
+        return xstrdup("string");
+    case TYPE_CHAR:
+        return xstrdup("char");
+    case TYPE_I8:
+        return xstrdup("int8_t");
+    case TYPE_U8:
+        return xstrdup("uint8_t");
+    case TYPE_I16:
+        return xstrdup("int16_t");
+    case TYPE_U16:
+        return xstrdup("uint16_t");
+    case TYPE_I32:
+        return xstrdup("int32_t");
+    case TYPE_U32:
+        return xstrdup("uint32_t");
+    case TYPE_I64:
+        return xstrdup("int64_t");
+    case TYPE_U64:
+        return xstrdup("uint64_t");
+    case TYPE_F32:
+        return xstrdup("float");
+    case TYPE_F64:
+        return xstrdup("double");
+    case TYPE_USIZE:
+        return xstrdup("size_t");
+    case TYPE_ISIZE:
+        return xstrdup("ptrdiff_t");
+    case TYPE_BYTE:
+        return xstrdup("uint8_t");
+    case TYPE_I128:
+        return xstrdup("__int128");
+    case TYPE_U128:
+        return xstrdup("unsigned __int128");
+    case TYPE_RUNE:
+        return xstrdup("int32_t");
+    case TYPE_UINT:
+        return xstrdup("unsigned int");
+    case TYPE_INT:
+        return xstrdup("int");
+    case TYPE_FLOAT:
+        return xstrdup("float");
+
+    case TYPE_POINTER:
+    {
+        char *inner = type_to_c_string(t->inner);
+        if (t->is_restrict)
+        {
+            char *res = xmalloc(strlen(inner) + 16);
+            sprintf(res, "%s* __restrict", inner);
+            return res;
+        }
+        else
+        {
+            char *res = xmalloc(strlen(inner) + 2);
+            sprintf(res, "%s*", inner);
+            return res;
+        }
+    }
+
+    case TYPE_ARRAY:
+    {
+        char *inner = type_to_c_string(t->inner);
+
+        if (t->array_size > 0)
+        {
+            char *res = xmalloc(strlen(inner) + 20);
+            sprintf(res, "%s[%d]", inner, t->array_size);
+            return res;
+        }
+
+        char *res = xmalloc(strlen(inner) + 7);
+        sprintf(res, "Slice_%s", inner);
+        return res;
+    }
+
+    case TYPE_FUNCTION:
+        if (t->inner)
+        {
+            free(type_to_c_string(t->inner));
+        }
+        return xstrdup("z_closure_T");
+
+    case TYPE_GENERIC:
+        return xstrdup(t->name);
+
+    case TYPE_ENUM:
+        return xstrdup(t->name);
 
     default:
         return xstrdup("unknown");

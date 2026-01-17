@@ -1,0 +1,177 @@
+
+import "std.zc"
+
+@derive(Eq, Clone)
+struct Point {
+    x: int;
+    y: int;
+}
+
+test "test_vec_methods" {
+    println "Testing Vec methods...";
+    
+    // Insert at beginning
+    var v = Vec<int>::new();
+    v.push(10);
+    v.push(20);
+    v.push(30);
+    v.insert(0, 5);
+    
+    if (v.get(0) == 5 && v.get(1) == 10 && v.length() == 4) {
+        println "  -> insert(0, 5): Passed";
+    } else {
+        assert(false, "insert(0, 5) failed");
+    }
+    
+    // Insert in middle
+    v.insert(2, 15);
+    if (v.get(2) == 15 && v.get(3) == 20 && v.length() == 5) {
+        println "  -> insert(2, 15): Passed";
+    } else {
+        assert(false, "insert(2, 15) failed");
+    }
+    
+    // Insert at end
+    v.insert(5, 35);
+    if (v.get(5) == 35 && v.length() == 6) {
+        println "  -> insert(5, 35): Passed";
+    } else {
+        assert(false, "insert(5, 35) failed");
+    }
+    
+    // Remove from beginning
+    var removed = v.remove(0);
+    if (removed == 5 && v.get(0) == 10 && v.length() == 5) {
+        println "  -> remove(0): Passed";
+    } else {
+        assert(false, "remove(0) failed");
+    }
+    
+    // Remove from middle
+    var removed2 = v.remove(1);
+    if (removed2 == 15 && v.get(1) == 20 && v.length() == 4) {
+        println "  -> remove(1): Passed";
+    } else {
+        assert(false, "remove(1) failed");
+    }
+    
+    // Remove from end
+    var removed3 = v.remove(3);
+    if (removed3 == 35 && v.length() == 3) {
+        println "  -> remove(3): Passed";
+    } else {
+        assert(false, "remove(3) failed");
+    }
+    
+    // Verify final state
+    if (v.get(0) == 10 && v.get(1) == 20 && v.get(2) == 30) {
+        println "  -> final state: Passed";
+    } else {
+        assert(false, "final state failed");
+    }
+    
+    println "All Vec methods passed!";
+}
+
+test "test_vec_extensions" {
+    println "Testing Vec extensions (pop, clear, etc)...";
+    var v = Vec<int>::new();
+    v.push(10);
+    v.push(20);
+    v.push(30);
+
+    assert(v.length() == 3, "Length should be 3");
+    assert(v.last() == 30, "Last should be 30");
+
+    var popped = v.pop();
+    println "Popped: {popped}";
+    assert(popped == 30, "Popped value mismatch");
+    assert(v.length() == 2, "Length after pop mismatch");
+
+    assert(!v.is_empty(), "Vector should not be empty");
+    
+    v.clear();
+    assert(v.is_empty(), "Vector should be empty after clear");
+    assert(v.length() == 0, "Length should be 0");
+    
+    v.free();
+}
+
+test "test_vec_basic" {
+    var v = Vec<int>::new();
+    v.push(10);
+    v.push(10);
+    v.push(20);
+    var v0 = v.get(0);
+    var v1 = v.get(1);
+    println "Vec: {v0}, {v1}";
+
+    var s1 = String::from("Hello ");
+    var s2 = String::from("World");
+    var s3 = s1 + s2;
+    
+    println "{s3.c_str()}";
+}
+
+test "test_vec_clone" {
+    var v = Vec<int>::new();
+    v.push(10);
+    v.push(20);
+    v.push(30);
+    
+    println "Vec has {(int)v.len} elements";
+    println "First: {v.first()}";
+    println "Last: {v.last()}";
+    
+    v.free();
+    "Done";
+}
+
+test "test_vec_contains" {
+    println "Testing Vec::contains with structs...";
+    
+    var v = Vec<Point>::new();
+    v.push(Point { x: 1, y: 2 });
+    v.push(Point { x: 3, y: 4 });
+    
+    var p1 = Point { x: 1, y: 2 };
+    if (v.contains(p1)) {
+        println "  -> contains((1, 2)): Passed";
+    } else {
+        assert(false, "contains({1, 2}) failed");
+    }
+    
+    var p2 = Point { x: 3, y: 4 };
+    if (v.contains(p2)) {
+        println "  -> contains((3, 4)): Passed";
+    } else {
+        assert(false, "contains({3, 4}) failed");
+    }
+    
+    var p3 = Point { x: 5, y: 6 };
+    if (!v.contains(p3)) {
+        println "  -> !contains((5, 6)): Passed";
+    } else {
+        assert(false, "!contains({5, 6}) failed");
+    }
+    
+    var vi = Vec<int>::new();
+    vi.push(10);
+    vi.push(20);
+    
+    if (vi.contains(10)) {
+        println "  -> Vec<int>::contains(10): Passed";
+    } else {
+        assert(false, "Vec<int>::contains(10) failed");
+    }
+    
+    if (!vi.contains(30)) {
+        println "  -> !Vec<int>::contains(30): Passed";
+    } else {
+        assert(false, "!Vec<int>::contains(30) failed");
+    }
+
+    v.free();
+    vi.free();
+    println "All tests passed!";
+}

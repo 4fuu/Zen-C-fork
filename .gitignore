@@ -2,9 +2,15 @@
 build/
 obj/
 zc
+result
+out.c
+a.out
 *.o
 *.exe
-out.c
+*.so
+*.dll
+*.dylib
+*.a
 
 # CMake
 CMakeCache.txt
@@ -22,3 +28,9 @@ Makefile.cmake
 # OS
 .DS_Store
 Thumbs.db
+
+# Misc
+compile_commands.json
+vgcore.*
+tests/**/*.o
+plugins/*.so

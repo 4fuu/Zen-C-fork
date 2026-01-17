@@ -1,0 +1,57 @@
+
+test "test_embed" {
+    "=> Static File Analyzer";
+    
+    var data = embed "std.zc";
+    
+    "Target File: 'std.zc'";
+    "File Size:   {data.len} bytes";
+    "";
+    
+    var lines: I32 = 1;
+    var words: I32 = 0;
+    var sum: U64 = 0;
+    var in_word: bool = 0;
+    
+    "Analyzing content...";
+    
+    var i: int = 0;
+    while (i < data.len) {
+        var c: char = data.data[i];
+        
+        match c {
+            '\n' => {
+                lines++;
+                in_word = 0;
+            }
+    
+            ' ', '\t', '\r' => { 
+                in_word = 0; 
+            }
+    
+            _ => {
+                if (!in_word) {
+                    words++;
+                    in_word = 1;
+                }
+            }
+        }
+
+        var b: U8 = c;
+        sum = sum + b;
+        
+        i++;
+    }
+    
+    "";
+    "*** Report ***";
+    "Total Lines: {lines}";
+    "Total Words: {words}";
+    
+    "Checksum:    0x{sum:X} (Simple Sum)"; 
+    "Average Byte: {sum / data.len}"; 
+    
+    "";
+    "Analysis successfully completed.";
+    
+}

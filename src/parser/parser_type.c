@@ -12,10 +12,15 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
 
     if (t.type == TOK_IDENT)
     {
+        int explicit_struct = 0;
         // Handle "struct Name" or "enum Name"
         if ((t.len == 6 && strncmp(t.start, "struct", 6) == 0) ||
             (t.len == 4 && strncmp(t.start, "enum", 4) == 0))
         {
+            if (strncmp(t.start, "struct", 6) == 0)
+            {
+                explicit_struct = 1;
+            }
             lexer_next(l); // consume keyword
             t = lexer_peek(l);
             if (t.type != TOK_IDENT)
@@ -26,6 +31,16 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
 
         lexer_next(l);
         char *name = token_strdup(t);
+
+        // Check for alias
+        const char *aliased = find_type_alias(ctx, name);
+        if (aliased)
+        {
+            free(name);
+            Lexer tmp;
+            lexer_init(&tmp, aliased);
+            return parse_type_formal(ctx, &tmp);
+        }
 
         // Self type alias: Replace "Self" with current impl struct type
         if (strcmp(name, "Self") == 0 && ctx->current_impl_struct)
@@ -371,45 +386,103 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
 
         Type *ty = type_new(TYPE_STRUCT);
         ty->name = name;
+        ty->is_explicit_struct = explicit_struct;
 
-        // Handle Generics <T>
+        // Handle Generics <T> or <K, V>
         if (lexer_peek(l).type == TOK_LANGLE)
         {
             lexer_next(l); // eat <
-            Type *arg = parse_type_formal(ctx, l);
+            Type *first_arg = parse_type_formal(ctx, l);
+            char *first_arg_str = type_to_string(first_arg);
 
-            // Handle nested generics like Vec<Vec<int>> where >> is tokenized as one
-            // op
+            // Check for multi-arg: <K, V>
             Token next_tok = lexer_peek(l);
-            if (next_tok.type == TOK_RANGLE)
+            if (next_tok.type == TOK_COMMA)
             {
-                lexer_next(l); // Consume >
-            }
-            else if (next_tok.type == TOK_OP && next_tok.len == 2 &&
-                     strncmp(next_tok.start, ">>", 2) == 0)
-            {
-                // Split >> into two > tokens
-                // Consume the first > by advancing lexer manually
-                l->pos += 1;
-                l->col += 1;
+                // Multi-arg case
+                char **args = xmalloc(sizeof(char *) * 8);
+                int arg_count = 0;
+                args[arg_count++] = xstrdup(first_arg_str);
+
+                while (lexer_peek(l).type == TOK_COMMA)
+                {
+                    lexer_next(l); // eat ,
+                    Type *arg = parse_type_formal(ctx, l);
+                    char *arg_str = type_to_string(arg);
+                    args = realloc(args, sizeof(char *) * (arg_count + 1));
+                    args[arg_count++] = xstrdup(arg_str);
+                    free(arg_str);
+                }
+
+                // Consume >
+                next_tok = lexer_peek(l);
+                if (next_tok.type == TOK_RANGLE)
+                {
+                    lexer_next(l);
+                }
+                else if (next_tok.type == TOK_OP && next_tok.len == 2 &&
+                         strncmp(next_tok.start, ">>", 2) == 0)
+                {
+                    l->pos += 1;
+                    l->col += 1;
+                }
+                else
+                {
+                    zpanic_at(t, "Expected > after generic");
+                }
+
+                // Call multi-arg instantiation
+                instantiate_generic_multi(ctx, name, args, arg_count, t);
+
+                // Build mangled name
+                char mangled[256];
+                strcpy(mangled, name);
+                for (int i = 0; i < arg_count; i++)
+                {
+                    char *clean = sanitize_mangled_name(args[i]);
+                    strcat(mangled, "_");
+                    strcat(mangled, clean);
+                    free(clean);
+                    free(args[i]);
+                }
+                free(args);
+
+                free(ty->name);
+                ty->name = xstrdup(mangled);
             }
             else
             {
-                zpanic_at(t, "Expected > after generic");
+                // Single-arg case - PRESERVE ORIGINAL FLOW EXACTLY
+                if (next_tok.type == TOK_RANGLE)
+                {
+                    lexer_next(l); // Consume >
+                }
+                else if (next_tok.type == TOK_OP && next_tok.len == 2 &&
+                         strncmp(next_tok.start, ">>", 2) == 0)
+                {
+                    // Split >> into two > tokens
+                    l->pos += 1;
+                    l->col += 1;
+                }
+                else
+                {
+                    zpanic_at(t, "Expected > after generic");
+                }
+
+                char *unmangled_arg = type_to_c_string(first_arg);
+                instantiate_generic(ctx, name, first_arg_str, unmangled_arg, t);
+                free(unmangled_arg);
+
+                char *clean_arg = sanitize_mangled_name(first_arg_str);
+                char mangled[256];
+                sprintf(mangled, "%s_%s", name, clean_arg);
+                free(clean_arg);
+
+                free(ty->name);
+                ty->name = xstrdup(mangled);
             }
 
-            char *arg_str = type_to_string(arg);
-            instantiate_generic(ctx, name, arg_str);
-
-            char *clean_arg = sanitize_mangled_name(arg_str);
-            char mangled[256];
-            sprintf(mangled, "%s_%s", name, clean_arg);
-            free(clean_arg);
-
-            free(ty->name);
-            ty->name = xstrdup(mangled);
-            free(arg_str);
-
+            free(first_arg_str);
             ty->kind = TYPE_STRUCT;
             ty->args = NULL;
             ty->arg_count = 0;
@@ -455,7 +528,7 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
             }
             if (lexer_next(l).type != TOK_RBRACKET)
             {
-                zpanic("Expected ] after array size");
+                zpanic_at(lexer_peek(l), "Expected ] after array size");
             }
 
             Type *arr = type_new(TYPE_ARRAY);
@@ -467,7 +540,7 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
         // Otherwise it's a slice [T]
         if (lexer_next(l).type != TOK_RBRACKET)
         {
-            zpanic("Expected ] in type");
+            zpanic_at(lexer_peek(l), "Expected ] in type");
         }
 
         // Register Slice
@@ -505,7 +578,7 @@ Type *parse_type_base(ParserContext *ctx, Lexer *l)
         }
         if (lexer_next(l).type != TOK_RPAREN)
         {
-            zpanic("Expected ) in tuple");
+            zpanic_at(lexer_peek(l), "Expected ) in tuple");
         }
 
         register_tuple(ctx, sig);
@@ -535,7 +608,6 @@ Type *parse_type_formal(ParserContext *ctx, Lexer *l)
     if (lexer_peek(l).type == TOK_IDENT && strncmp(lexer_peek(l).start, "fn", 2) == 0 &&
         lexer_peek(l).len == 2)
     {
-
         lexer_next(l); // eat 'fn'
         Type *fn_type = type_new(TYPE_FUNCTION);
         fn_type->is_varargs = 0;
@@ -602,6 +674,23 @@ Type *parse_type_formal(ParserContext *ctx, Lexer *l)
             strncpy(buffer, t.start, len);
             buffer[len] = 0;
             size = atoi(buffer);
+            lexer_next(l);
+        }
+        else if (lexer_peek(l).type == TOK_IDENT)
+        {
+            Token t = lexer_peek(l);
+            char *name = token_strdup(t);
+            Symbol *sym = find_symbol_entry(ctx, name);
+            if (sym && sym->is_const_value)
+            {
+                size = sym->const_int_val;
+                sym->is_used = 1;
+            }
+            else
+            {
+                zpanic_at(t, "Array size must be a known compile-time constant integer");
+            }
+            free(name);
             lexer_next(l);
         }
 
@@ -773,7 +862,7 @@ char *parse_embed(ParserContext *ctx, Lexer *l)
     Token t = lexer_next(l);
     if (t.type != TOK_STRING)
     {
-        zpanic("String required");
+        zpanic_at(t, "String required");
     }
     char fn[256];
     strncpy(fn, t.start + 1, t.len - 2);
@@ -782,7 +871,7 @@ char *parse_embed(ParserContext *ctx, Lexer *l)
     FILE *f = fopen(fn, "rb");
     if (!f)
     {
-        zpanic("404: %s", fn);
+        zpanic_at(t, "404: %s", fn);
     }
     fseek(f, 0, SEEK_END);
     long len = ftell(f);
