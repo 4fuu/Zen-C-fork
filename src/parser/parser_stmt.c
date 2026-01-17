@@ -3783,7 +3783,7 @@ ASTNode *parse_import(ParserContext *ctx, Lexer *l)
     // If not resolved, keep original fn - will error later when trying to open
 
     // Canonicalize path to avoid duplicates (for example: "./std/io.zc" vs "std/io.zc")
-    char *real_fn = realpath(fn, NULL);
+    char *real_fn = zc_realpath(fn, NULL);
     if (real_fn)
     {
         free(fn);
@@ -4069,7 +4069,11 @@ char *run_comptime_block(ParserContext *ctx, Lexer *l)
 
     char out_file[1024];
     sprintf(out_file, "%s.out", filename);
+#ifdef _WIN32
+    sprintf(cmd, "%s > %s", bin, out_file);
+#else
     sprintf(cmd, "./%s > %s", bin, out_file);
+#endif
     if (system(cmd) != 0)
     {
         zpanic_at(lexer_peek(l), "Comptime execution failed");

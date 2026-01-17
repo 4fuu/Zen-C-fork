@@ -110,6 +110,31 @@ const char *zc_get_temp_dir(void)
     return s_temp_dir;
 }
 
+char *zc_realpath(const char *path, char *resolved)
+{
+    char *buffer = resolved;
+    if (!buffer)
+    {
+        buffer = malloc(MAX_PATH);
+        if (!buffer)
+            return NULL;
+    }
+    DWORD len = GetFullPathNameA(path, MAX_PATH, buffer, NULL);
+    if (len == 0 || len >= MAX_PATH)
+    {
+        if (!resolved)
+            free(buffer);
+        return NULL;
+    }
+    if (GetFileAttributesA(buffer) == INVALID_FILE_ATTRIBUTES)
+    {
+        if (!resolved)
+            free(buffer);
+        return NULL;
+    }
+    return buffer;
+}
+
 char *extract_main_body(const char *c_file_path)
 {
     FILE *f = fopen(c_file_path, "r");

@@ -22,6 +22,8 @@
 // Forward decl for LSP
 int lsp_main(int argc, char **argv);
 
+
+
 void print_search_paths()
 {
     printf("Search paths:\n");
@@ -230,6 +232,9 @@ int main(int argc, char **argv)
 
     // Initialize Plugin Manager
     zptr_plugin_mgr_init();
+
+    // Auto-load plugins from plugins directory
+    zptr_load_plugins_from_dir();
 
     // Parse context init
     ParserContext ctx;

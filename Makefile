@@ -1,15 +1,17 @@
 # Installation paths (must be before CFLAGS)
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
+LIBDIR = $(PREFIX)/lib
 DATADIR = $(PREFIX)/share/zc
 MANDIR = $(PREFIX)/share/man
+PLUGINDIR = $(LIBDIR)/zc/plugins
 
 # Compiler configuration
 # Default: gcc
 # To build with clang: make CC=clang
 # To build with zig:   make CC="zig cc"
 CC = gcc
-CFLAGS = -Wall -Wextra -g -I./src -I./src/ast -I./src/parser -I./src/codegen -I./plugins -I./src/zen -I./src/utils -I./src/lexer -I./src/analysis -I./src/lsp -I./src/compat -DZC_STD_INSTALL_PATH='"$(DATADIR)"'
+CFLAGS = -Wall -Wextra -g -I./src -I./src/ast -I./src/parser -I./src/codegen -I./plugins -I./src/zen -I./src/utils -I./src/lexer -I./src/analysis -I./src/lsp -I./src/compat -DZC_STD_INSTALL_PATH='"$(DATADIR)"' -DZC_PLUGIN_INSTALL_PATH='"$(PLUGINDIR)"'
 TARGET = zc
 LIBS = -lm -lpthread -ldl
 
@@ -79,9 +81,14 @@ install: $(TARGET)
 	# Install plugin headers
 	install -d $(DATADIR)/include
 	install -m 644 plugins/zprep_plugin.h $(DATADIR)/include/zprep_plugin.h
+	
+	# Install plugins
+	install -d $(PLUGINDIR)
+	install -m 755 plugins/*.so $(PLUGINDIR)/ 2>/dev/null || true
 	@echo "=> Installed to $(BINDIR)/$(TARGET)"
 	@echo "=> Man pages installed to $(MANDIR)"
 	@echo "=> Standard library installed to $(DATADIR)/"
+	@echo "=> Plugins installed to $(PLUGINDIR)/"
 
 # Uninstall
 uninstall:
@@ -90,6 +97,7 @@ uninstall:
 	rm -f $(MANDIR)/man5/zc.5
 	rm -f $(MANDIR)/man7/zc.7
 	rm -rf $(DATADIR)
+	rm -rf $(PLUGINDIR)
 	@echo "=> Uninstalled $(TARGET)"
 
 # Clean

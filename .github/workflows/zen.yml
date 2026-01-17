@@ -39,5 +39,4 @@ jobs:
     - name: Run tests
       shell: msys2 {0}
       run: |
-        export PATH="$PWD/build/Release:$PATH"
         bash ./tests/run_tests.sh

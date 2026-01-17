@@ -36,6 +36,8 @@ ssize_t zc_getline(char **lineptr, size_t *n, FILE *stream);
 #define isatty _isatty
 #define getpid _getpid
 #define access _access
+
+char *zc_realpath(const char *path, char *resolved);
 #define STDERR_FILENO 2
 #define STDOUT_FILENO 1
 #define STDIN_FILENO 0
@@ -61,6 +63,7 @@ typedef void *zc_dl_handle;
 #define zc_dlclose dlclose
 #define zc_dlerror dlerror
 #define zc_getline getline
+#define zc_realpath realpath
 
 #define ZC_PLUGIN_EXT ".so"
 #define ZC_PATH_SEP '/'

@@ -43,6 +43,10 @@ set(SRCS
     src/repl/repl.c
     src/plugins/plugin_manager.c
     ${COMPAT_SRC}
+)
+
+# Plugin sources
+set(PLUGIN_SRCS
     plugins/befunge.c
     plugins/brainfuck.c
     plugins/forth.c
@@ -53,6 +57,29 @@ set(SRCS
 
 # Executable
 add_executable(zc ${SRCS})
+
+# Build plugins as shared libraries
+foreach(plugin_src ${PLUGIN_SRCS})
+    get_filename_component(plugin_name ${plugin_src} NAME_WE)
+    add_library(${plugin_name} SHARED ${plugin_src})
+    target_include_directories(${plugin_name} PRIVATE
+        ${CMAKE_SOURCE_DIR}/plugins
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/compat
+    )
+    set_target_properties(${plugin_name} PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+    )
+    if(WIN32)
+        set_target_properties(${plugin_name} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/plugins"
+            LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/plugins"
+            RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/plugins"
+            RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/plugins"
+        )
+    endif()
+endforeach()
 
 # Include directories
 target_include_directories(zc PRIVATE
@@ -92,13 +119,33 @@ else()
     set(ZC_STD_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/${ZC_DATA_DIR}")
 endif()
 
-# Pass install path to compiler
+# Plugin install path
+if(WIN32)
+    set(ZC_PLUGIN_INSTALL_PATH "")  # Empty = search relative to exe
+else()
+    set(ZC_PLUGIN_INSTALL_PATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/zc/plugins")
+endif()
+
+# Pass install paths to compiler
 target_compile_definitions(zc PRIVATE
     ZC_STD_INSTALL_PATH="${ZC_STD_INSTALL_PATH}"
+    ZC_PLUGIN_INSTALL_PATH="${ZC_PLUGIN_INSTALL_PATH}"
 )
 
 install(DIRECTORY std/ DESTINATION ${ZC_DATA_DIR}/std)
 install(FILES std.zc DESTINATION ${ZC_DATA_DIR})
+
+# Install plugins
+foreach(plugin_src ${PLUGIN_SRCS})
+    get_filename_component(plugin_name ${plugin_src} NAME_WE)
+    if(WIN32)
+        # Windows: install DLLs alongside exe in bin/plugins/
+        install(TARGETS ${plugin_name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/plugins)
+    else()
+        # Unix: install .so to lib/zc/plugins/
+        install(TARGETS ${plugin_name} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/zc/plugins)
+    endif()
+endforeach()
 
 # Man page (Unix only)
 if(NOT WIN32)
