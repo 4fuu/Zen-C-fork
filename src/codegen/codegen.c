@@ -1732,6 +1732,11 @@ void codegen_node_single(ParserContext *ctx, ASTNode *node, FILE *out)
 
                 if (inferred && strcmp(inferred, "__auto_type") != 0)
                 {
+                    ASTNode *def = find_struct_def(ctx, inferred);
+                    if (def && def->type_info && def->type_info->traits.has_drop)
+                    {
+                        fprintf(out, "__attribute__((cleanup(%s__Drop_glue))) ", inferred);
+                    }
                     emit_var_decl_type(ctx, out, inferred, node->var_decl.name);
                     add_symbol(ctx, node->var_decl.name, inferred, NULL);
                     fprintf(out, " = ");

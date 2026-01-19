@@ -534,6 +534,18 @@ char g_cflags[MAX_FLAGS_SIZE] = "";
 int g_warning_count = 0;
 CompilerConfig g_config = {0};
 
+static int should_skip_link_flag(const char *flag)
+{
+#ifdef _WIN32
+    if (strcmp(flag, "-lpthread") == 0)
+        return 1;
+#else
+    if (strcmp(flag, "-lws2_32") == 0)
+        return 1;
+#endif
+    return 0;
+}
+
 void scan_build_directives(ParserContext *ctx, const char *src)
 {
     (void)ctx; // Currently unused, reserved for future use
@@ -570,11 +582,22 @@ void scan_build_directives(ParserContext *ctx, const char *src)
                 {
                     val++;
                 }
-                if (strlen(g_link_flags) > 0)
+                char filtered[2048] = "";
+                char *saveptr = NULL;
+                for (char *tok = strtok_r(val, " \t", &saveptr); tok; tok = strtok_r(NULL, " \t", &saveptr))
                 {
-                    strcat(g_link_flags, " ");
+                    if (should_skip_link_flag(tok))
+                        continue;
+                    if (strlen(filtered) > 0)
+                        strcat(filtered, " ");
+                    strcat(filtered, tok);
                 }
-                strcat(g_link_flags, val);
+                if (strlen(filtered) > 0)
+                {
+                    if (strlen(g_link_flags) > 0)
+                        strcat(g_link_flags, " ");
+                    strcat(g_link_flags, filtered);
+                }
             }
             else if (0 == strncmp(line, "cflags:", 7))
             {

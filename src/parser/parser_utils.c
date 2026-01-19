@@ -1,5 +1,6 @@
 
 #include "../codegen/codegen.h"
+#include "../compat/compat.h"
 #include "../plugins/plugin_manager.h"
 #include "parser.h"
 #include <ctype.h>
@@ -2941,14 +2942,14 @@ void register_plugin(ParserContext *ctx, const char *name, const char *alias)
         if (!plugin)
         {
             char path[1024];
-            snprintf(path, sizeof(path), "%s.so", name);
+            snprintf(path, sizeof(path), "%s%s", name, ZC_PLUGIN_EXT);
             plugin = zptr_load_plugin(path);
         }
 
         if (!plugin && !strchr(name, '/'))
         {
             char path[1024];
-            snprintf(path, sizeof(path), "./%s.so", name);
+            snprintf(path, sizeof(path), "./%s%s", name, ZC_PLUGIN_EXT);
             plugin = zptr_load_plugin(path);
         }
     }
@@ -2957,8 +2958,8 @@ void register_plugin(ParserContext *ctx, const char *name, const char *alias)
     {
         fprintf(stderr,
                 COLOR_RED "Error:" COLOR_RESET " Could not load plugin '%s'\n"
-                          "       Tried built-ins and dynamic loading (.so)\n",
-                name);
+                          "       Tried built-ins and dynamic loading (%s)\n",
+                name, ZC_PLUGIN_EXT);
         exit(1);
     }
 
